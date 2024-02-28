@@ -10,5 +10,5 @@ pub enum ContractErrors {
     RecordDoesntExist = 5,
     InvalidDomain = 6,
     ExpiredDomain = 7,
-    ParentDoesntExist = 8,
+    InvalidParent = 8,
 }

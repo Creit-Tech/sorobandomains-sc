@@ -1,6 +1,6 @@
 use crate::errors::ContractErrors;
 use crate::storage::core::{CoreData, CoreDataEntity};
-use crate::storage::record::{Record, RecordEntity, SubRecord};
+use crate::storage::record::{Domain, Record, RecordEntity, RecordKeys, SubDomain};
 use crate::utils::records::{generate_node, validate_domain};
 use soroban_sdk::{
     contract, contractimpl, panic_with_error, token, Address, Bytes, BytesN, Env, Vec,
@@ -28,15 +28,15 @@ pub trait RegistryContractTrait {
         duration: u64,
     );
 
-    fn set_sub(e: Env, sub: Bytes, parent: BytesN<32>, address: Address);
+    fn set_sub(e: Env, sub: Bytes, parent_key: RecordKeys, address: Address);
 
     /// Get a record based on the node hash
-    fn record(e: Env, node: BytesN<32>) -> Option<Record>;
+    fn record(e: Env, record_key: RecordKeys) -> Option<Record>;
 
     fn parse_domain(e: Env, domain: Bytes, tld: Bytes) -> BytesN<32>;
 
     /// When burning a record, the record gets removed from the storage and the collateral is released
-    fn burn_record(e: Env, node: BytesN<32>);
+    fn burn_record(e: Env, record_key: RecordKeys);
 }
 
 #[contract]
@@ -97,9 +97,10 @@ impl RegistryContractTrait for RegistryContract {
         }
 
         let node_hash: BytesN<32> = generate_node(&e, &domain, &tld);
+        let record_key: RecordKeys = RecordKeys::Record(node_hash.clone());
 
         // We check if the record already exists, if it does then we panic
-        if e.record(&node_hash).is_some() {
+        if e.record(&record_key).is_some() {
             panic_with_error!(&e, &ContractErrors::RecordAlreadyExist);
         }
 
@@ -122,58 +123,78 @@ impl RegistryContractTrait for RegistryContract {
             &(collateral as i128),
         );
 
-        e.set_record(&Record {
-            node: node_hash.clone(),
+        e.set_record(&Record::Domain(Domain {
+            node: node_hash,
             owner,
             address,
             exp_date,
             collateral,
-        });
+        }));
 
         // TODO: add an event
 
-        e.bump_record(&node_hash);
+        e.bump_record(&record_key);
     }
 
-    fn set_sub(e: Env, sub: Bytes, parent: BytesN<32>, address: Address) {
+    fn set_sub(e: Env, sub: Bytes, parent_key: RecordKeys, address: Address) {
         e.bump_core();
 
         validate_domain(&e, &sub);
 
         let parent_record: Record = e
-            .record(&parent)
-            .unwrap_or_else(|| panic_with_error!(&e, &ContractErrors::ParentDoesntExist));
+            .record(&parent_key)
+            .unwrap_or_else(|| panic_with_error!(&e, &ContractErrors::InvalidParent));
 
-        parent_record.owner.require_auth();
+        if let Record::Domain(domain) = parent_record {
+            domain.owner.require_auth();
 
-        if parent_record.exp_date < e.ledger().timestamp() {
-            panic_with_error!(&e, &ContractErrors::ExpiredDomain);
-        }
-
-        let node_hash: BytesN<32> = generate_node(&e, &sub, &(Bytes::from(parent.clone())));
-
-        e.set_sub(&SubRecord {
-            node: node_hash.clone(),
-            parent,
-            address,
-        });
-
-        e.bump_sub(&node_hash);
-    }
-
-    fn record(e: Env, node: BytesN<32>) -> Option<Record> {
-        e.bump_core();
-
-        if let Some(record) = e.record(&node) {
-            e.bump_record(&node);
-
-            if record.exp_date < e.ledger().timestamp() {
+            if domain.exp_date < e.ledger().timestamp() {
                 panic_with_error!(&e, &ContractErrors::ExpiredDomain);
             }
 
-            Some(record)
+            let node_hash: BytesN<32> = generate_node(&e, &sub, &(Bytes::from(domain.node.clone())));
+            let record_key: RecordKeys = RecordKeys::SubRecord(node_hash.clone());
+
+            e.set_record(&Record::SubDomain(SubDomain {
+                node: node_hash,
+                parent: domain.node.clone(),
+                address,
+            }));
+
+            e.bump_record(&record_key);
         } else {
-            None
+            panic_with_error!(&e, &ContractErrors::InvalidParent)
+        }
+    }
+
+    fn record(e: Env, record_key: RecordKeys) -> Option<Record> {
+        e.bump_core();
+
+        let record: Option<Record> = e.record(&record_key);
+
+        if record.is_none() {
+            return None;
+        }
+
+        match record.unwrap() {
+            Record::Domain(domain) => {
+                if domain.exp_date < e.ledger().timestamp() {
+                    panic_with_error!(&e, &ContractErrors::ExpiredDomain);
+                }
+
+                Some(Record::Domain(domain))
+            }
+            Record::SubDomain(sub) => {
+                if let Record::Domain(domain) = e.record(&RecordKeys::Record(sub.parent.clone())).unwrap() {
+                    if domain.exp_date < e.ledger().timestamp() {
+                        panic_with_error!(&e, &ContractErrors::ExpiredDomain);
+                    }
+                } else {
+                    panic_with_error!(&e, &ContractErrors::InvalidParent);
+                }
+
+                Some(Record::SubDomain(sub))
+            }
         }
     }
 
@@ -182,23 +203,33 @@ impl RegistryContractTrait for RegistryContract {
         generate_node(&e, &domain, &tld)
     }
 
-    fn burn_record(e: Env, node: BytesN<32>) {
+    fn burn_record(e: Env, record_key: RecordKeys) {
         e.bump_core();
         let core_data: CoreData = e.core_data().unwrap();
-        let record: Record = match e.record(&node) {
+        let record: Record = match e.record(&record_key) {
             Some(record) => record,
             None => panic_with_error!(&e, ContractErrors::RecordDoesntExist),
         };
 
-        record.owner.require_auth();
-
-        e.burn_record(&node);
-
-        token::Client::new(&e, &core_data.col_asset).transfer(
-            &e.current_contract_address(),
-            &record.owner,
-            &(record.collateral as i128),
-        );
+        match record {
+            Record::Domain(domain) => {
+                domain.owner.require_auth();
+                e.burn_record(&RecordKeys::Record(domain.node.clone()));
+                token::Client::new(&e, &core_data.col_asset).transfer(
+                    &e.current_contract_address(),
+                    &domain.owner,
+                    &(domain.collateral as i128),
+                );
+            }
+            Record::SubDomain(sub) => {
+                if let Record::Domain(domain) = e.record(&RecordKeys::Record(sub.parent.clone())).unwrap() {
+                    domain.owner.require_auth();
+                } else {
+                    panic_with_error!(&e, &ContractErrors::InvalidParent);
+                }
+                e.burn_record(&RecordKeys::Record(sub.node.clone()));
+            }
+        }
 
         // TODO: Add event
     }

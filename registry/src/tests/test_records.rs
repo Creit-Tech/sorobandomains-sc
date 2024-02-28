@@ -1,10 +1,11 @@
 #![cfg(test)]
 
 use crate::errors::ContractErrors;
-use crate::storage::record::Record;
+use crate::storage::record::{Domain, Record, RecordKeys, SubDomain};
 use crate::tests::test_utils::{create_test_data, init_contract, TestData};
-use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{Address, Bytes, BytesN, Env};
+use soroban_sdk::testutils::{Address as _, MockAuth, MockAuthInvoke};
+use soroban_sdk::{Address, Bytes, BytesN, Env, IntoVal};
+use crate::utils::records::generate_node;
 
 #[test]
 fn test_setting_record() {
@@ -39,18 +40,18 @@ fn test_setting_record() {
 
     let saved_record: Option<Record> = test_data
         .contract_client
-        .record(&BytesN::from_array(&e, &node_bytes));
+        .record(&RecordKeys::Record(BytesN::from_array(&e, &node_bytes)));
 
     assert!(saved_record.is_some());
     assert_eq!(
         saved_record.unwrap(),
-        Record {
+        Record::Domain(Domain {
             node: BytesN::from_array(&e, &node_bytes),
             owner: new_owner.clone(),
             address: new_address_target.clone(),
             exp_date: e.ledger().timestamp() + duration,
             collateral: test_data.node_rate * (duration as u128),
-        }
+        })
     );
 
     let error_already_created = test_data
@@ -178,8 +179,103 @@ fn test_invalid_domain() {
 
 #[test]
 fn test_multiplier() {
+    // TODO:
+}
+
+#[test]
+fn test_subdomains() {
     let e: Env = Env::default();
-    e.mock_all_auths();
     let test_data: TestData = create_test_data(&e);
     init_contract(&test_data);
+
+    let owner: Address = Address::generate(&e);
+    let domain_address: Address = Address::generate(&e);
+    let domain: Bytes = Bytes::from_slice(&e, "stellar".as_bytes());
+    let tld: Bytes = Bytes::from_slice(&e, "xlm".as_bytes());
+    let duration: u64 = test_data.min_duration;
+
+    test_data.col_asset_stellar.mock_all_auths().mint(
+        &owner,
+        &(duration as i128 * test_data.node_rate as i128),
+    );
+
+    test_data.contract_client
+        .mock_all_auths()
+        .set_record(
+            &domain,
+            &tld,
+            &owner,
+            &domain_address,
+            &duration,
+        );
+
+    let sub_domain: Bytes = Bytes::from_slice(&e, "payments".as_bytes());
+    let domain_node: BytesN<32> = generate_node(&e, &domain, &tld);
+    let new_address: Address = Address::generate(&e);
+
+    test_data.contract_client
+        .mock_auths(&[
+            MockAuth {
+                address: &owner,
+                invoke: &MockAuthInvoke {
+                    contract: &test_data.contract_client.address,
+                    fn_name: "set_sub",
+                    args: (
+                        sub_domain.clone(),
+                        RecordKeys::Record(domain_node.clone()),
+                        new_address.clone()
+                    ).into_val(&e),
+                    sub_invokes: &[],
+                },
+            }
+        ])
+        .set_sub(&sub_domain, &RecordKeys::Record(domain_node.clone()), &new_address);
+
+    let sub_domain_node: BytesN<32> = generate_node(&e, &sub_domain, &Bytes::from(domain_node.clone()));
+
+    let sub_domain_record: SubDomain = match test_data.contract_client.record(&RecordKeys::SubRecord(sub_domain_node.clone())).unwrap() {
+        Record::Domain(_) => panic!(),
+        Record::SubDomain(sub) => sub,
+    };
+
+
+    assert_eq!(sub_domain_record.address, new_address);
+    assert_eq!(sub_domain_record.parent, domain_node);
+
+    // If there is no signature from the owner of the root domain, it can not update the subdomain
+    assert!(
+        test_data.contract_client
+            .mock_auths(&[
+                MockAuth {
+                    address: &Address::generate(&e),
+                    invoke: &MockAuthInvoke {
+                        contract: &test_data.contract_client.address,
+                        fn_name: "set_sub",
+                        args: (
+                            sub_domain.clone(),
+                            RecordKeys::Record(domain_node.clone()),
+                            new_address.clone()
+                        ).into_val(&e),
+                        sub_invokes: &[],
+                    },
+                }
+            ])
+            .try_set_sub(&sub_domain, &RecordKeys::Record(domain_node.clone()), &new_address)
+            .is_err()
+    );
+
+    let sub_domain: Bytes = Bytes::from_slice(&e, "payments".as_bytes());
+    let domain_node: BytesN<32> = generate_node(&e, &domain, &tld);
+    let updated_address: Address = Address::generate(&e);
+
+    test_data.contract_client
+        .mock_all_auths()
+        .set_sub(&sub_domain, &RecordKeys::Record(domain_node.clone()), &updated_address);
+
+    let updated_sub_domain_record: SubDomain = match test_data.contract_client.record(&RecordKeys::SubRecord(sub_domain_node.clone())).unwrap() {
+        Record::Domain(_) => panic!(),
+        Record::SubDomain(sub) => sub,
+    };
+
+    assert_eq!(updated_sub_domain_record.address, updated_address);
 }
