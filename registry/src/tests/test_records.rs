@@ -51,6 +51,7 @@ fn test_setting_record() {
             address: new_address_target.clone(),
             exp_date: e.ledger().timestamp() + duration,
             collateral: test_data.node_rate * (duration as u128),
+            snapshot: e.ledger().timestamp(),
         })
     );
 

@@ -17,8 +17,6 @@ pub trait RegistryContractTrait {
     );
     fn upgrade(e: Env, new_wasm_hash: BytesN<32>);
 
-    fn core_data(e: Env) -> Option<CoreData>;
-
     fn set_record(
         e: Env,
         domain: Bytes,
@@ -28,15 +26,15 @@ pub trait RegistryContractTrait {
         duration: u64,
     );
 
-    fn set_sub(e: Env, sub: Bytes, parent_key: RecordKeys, address: Address);
+    fn set_sub(e: Env, sub: Bytes, parent: RecordKeys, address: Address);
 
-    /// Get a record based on the node hash
-    fn record(e: Env, record_key: RecordKeys) -> Option<Record>;
+    // Get a record based on the node hash
+    fn record(e: Env, key: RecordKeys) -> Option<Record>;
 
     fn parse_domain(e: Env, domain: Bytes, tld: Bytes) -> BytesN<32>;
 
-    /// When burning a record, the record gets removed from the storage and the collateral is released
-    fn burn_record(e: Env, record_key: RecordKeys);
+    // When burning a record, the record gets removed from the storage and the collateral is released
+    fn burn_record(e: Env, key: RecordKeys);
 }
 
 #[contract]
@@ -66,15 +64,10 @@ impl RegistryContractTrait for RegistryContract {
         }
     }
 
-    fn upgrade(e: Env, new_wasm_hash: BytesN<32>) {
+    fn upgrade(e: Env, hash: BytesN<32>) {
         e.bump_core();
         e.is_adm();
-        e.deployer().update_current_contract_wasm(new_wasm_hash);
-    }
-
-    fn core_data(e: Env) -> Option<CoreData> {
-        e.bump_core();
-        e.core_data()
+        e.deployer().update_current_contract_wasm(hash);
     }
 
     fn set_record(
@@ -129,6 +122,7 @@ impl RegistryContractTrait for RegistryContract {
             address,
             exp_date,
             collateral,
+            snapshot: e.ledger().timestamp(),
         }));
 
         // TODO: add an event
@@ -136,13 +130,13 @@ impl RegistryContractTrait for RegistryContract {
         e.bump_record(&record_key);
     }
 
-    fn set_sub(e: Env, sub: Bytes, parent_key: RecordKeys, address: Address) {
+    fn set_sub(e: Env, sub: Bytes, parent: RecordKeys, address: Address) {
         e.bump_core();
 
         validate_domain(&e, &sub);
 
         let parent_record: Record = e
-            .record(&parent_key)
+            .record(&parent)
             .unwrap_or_else(|| panic_with_error!(&e, &ContractErrors::InvalidParent));
 
         if let Record::Domain(domain) = parent_record {
@@ -159,6 +153,7 @@ impl RegistryContractTrait for RegistryContract {
                 node: node_hash,
                 parent: domain.node.clone(),
                 address,
+                snapshot: domain.snapshot,
             }));
 
             e.bump_record(&record_key);
@@ -167,10 +162,10 @@ impl RegistryContractTrait for RegistryContract {
         }
     }
 
-    fn record(e: Env, record_key: RecordKeys) -> Option<Record> {
+    fn record(e: Env, key: RecordKeys) -> Option<Record> {
         e.bump_core();
 
-        let record: Option<Record> = e.record(&record_key);
+        let record: Option<Record> = e.record(&key);
 
         if record.is_none() {
             return None;
@@ -189,6 +184,10 @@ impl RegistryContractTrait for RegistryContract {
                     if domain.exp_date < e.ledger().timestamp() {
                         panic_with_error!(&e, &ContractErrors::ExpiredDomain);
                     }
+
+                    if domain.snapshot != sub.snapshot {
+                        panic_with_error!(&e, &ContractErrors::OutdatedSub);
+                    }
                 } else {
                     panic_with_error!(&e, &ContractErrors::InvalidParent);
                 }
@@ -203,10 +202,10 @@ impl RegistryContractTrait for RegistryContract {
         generate_node(&e, &domain, &tld)
     }
 
-    fn burn_record(e: Env, record_key: RecordKeys) {
+    fn burn_record(e: Env, key: RecordKeys) {
         e.bump_core();
         let core_data: CoreData = e.core_data().unwrap();
-        let record: Record = match e.record(&record_key) {
+        let record: Record = match e.record(&key) {
             Some(record) => record,
             None => panic_with_error!(&e, ContractErrors::RecordDoesntExist),
         };

@@ -2,17 +2,17 @@ use soroban_sdk::{contracttype, Address, Bytes, Env, Vec};
 
 #[contracttype]
 pub struct CoreData {
-    /// Admin can upgrade the contract and liquidate nodes
+    // Admin can upgrade the contract and liquidate nodes
     pub adm: Address,
 
-    /// The node rate is the amount of collateral the creator needs to put as collateral in terms of seconds
-    /// For example a node rate can be as low as 1 unit of collateral (ex: 0.0000001 XLM)
+    // The node rate is the amount of collateral the creator needs to put as collateral in terms of seconds
+    // For example a node rate can be as low as 1 unit of collateral (ex: 0.0000001 XLM)
     pub node_rate: u128,
 
-    /// Address of the asset used as collateral (XLM)
+    // Address of the asset used as collateral (XLM)
     pub col_asset: Address,
 
-    /// The min amount of time a domain can be registered
+    // The min amount of time a domain can be registered
     pub min_duration: u64,
 
     pub allowed_tlds: Vec<Bytes>,

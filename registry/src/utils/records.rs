@@ -1,11 +1,11 @@
 use crate::errors::ContractErrors;
 use soroban_sdk::{panic_with_error, Bytes, BytesN, Env};
 
-/// Currently there are forbidden types of domains:
-/// - Domains with numbers
-/// - Domains with special characters
-/// - Domains with uppercase letters
-/// - Domains that are longer than 15 characters
+// Currently there are forbidden types of domains:
+// - Domains with numbers
+// - Domains with special characters
+// - Domains with uppercase letters
+// - Domains that are longer than 15 characters
 pub fn validate_domain(e: &Env, domain: &Bytes) {
     if domain.len() > 15 {
         panic_with_error!(&e, &ContractErrors::InvalidDomain);
@@ -18,9 +18,9 @@ pub fn validate_domain(e: &Env, domain: &Bytes) {
     }
 }
 
-/// This function is used to generate the nodes based on the "domain" and the "parent".
-/// The parent can be either the root domain (in the case of generating a subdomain node) or the TLD (when generating a root
-/// domain node).
+// This function is used to generate the nodes based on the "domain" and the "parent".
+// The parent can be either the root domain (in the case of generating a subdomain node) or the TLD (when generating a root
+// domain node).
 pub fn generate_node(e: &Env, domain: &Bytes, parent: &Bytes) -> BytesN<32> {
     let parent_hash: BytesN<32> = e.crypto().keccak256(&parent);
     let domain_hash: BytesN<32> = e.crypto().keccak256(&domain);

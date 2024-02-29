@@ -20,6 +20,10 @@ pub struct Domain {
     // For example, if the `node_rate` is 1 unit of collateral and the min ttl is a year then the collateral amount is:
     // 1 * (3600 * 24 * 365) = 3.1536000 XLM
     pub collateral: u128,
+
+    // The snapshot is a value used as a flag for checking if other records are valid
+    // The snapshot is the timestamp it was created
+    pub snapshot: u64,
 }
 
 #[contracttype]
@@ -33,6 +37,10 @@ pub struct SubDomain {
 
     // The address is where the node resolves to
     pub address: Address,
+
+    // The snapshot is taken from the parent domain
+    // If the subdomain snapshot is different from the parent one, it means the subdomain is invalid
+    pub snapshot: u64,
 }
 
 #[contracttype]
