@@ -16,6 +16,7 @@ pub trait RegistryContractTrait {
         allowed_tlds: Vec<Bytes>,
     );
     fn upgrade(e: Env, new_wasm_hash: BytesN<32>);
+    fn update_tlds(e: Env, tlds: Vec<Bytes>);
 
     fn set_record(
         e: Env,
@@ -26,12 +27,18 @@ pub trait RegistryContractTrait {
         duration: u64,
     );
 
+    fn update_address(e: Env, key: RecordKeys, address: Address);
+
     fn set_sub(e: Env, sub: Bytes, parent: RecordKeys, address: Address);
 
     // Get a record based on the node hash
     fn record(e: Env, key: RecordKeys) -> Option<Record>;
 
     fn parse_domain(e: Env, domain: Bytes, tld: Bytes) -> BytesN<32>;
+
+    // The owner of a domain can transfer it to a different address
+    // This method also invalidates all the subdomains, this is just for prevention purposes but this can be changed in the future if people think there is no risk on it.
+    fn transfer(e: Env, key: RecordKeys, to: Address);
 
     // When burning a record, the record gets removed from the storage and the collateral is released
     fn burn_record(e: Env, key: RecordKeys);
@@ -68,6 +75,14 @@ impl RegistryContractTrait for RegistryContract {
         e.bump_core();
         e.is_adm();
         e.deployer().update_current_contract_wasm(hash);
+    }
+
+    fn update_tlds(e: Env, tlds: Vec<Bytes>) {
+        e.bump_core();
+        e.is_adm();
+        let mut core: CoreData = e.core_data().unwrap();
+        core.allowed_tlds = tlds;
+        e.set_core_data(&core);
     }
 
     fn set_record(
@@ -128,6 +143,23 @@ impl RegistryContractTrait for RegistryContract {
         // TODO: add an event
 
         e.bump_record(&record_key);
+    }
+
+    fn update_address(e: Env, key: RecordKeys, address: Address) {
+        e.bump_core();
+        let record: Record = match e.record(&key) {
+            Some(record) => record,
+            None => panic_with_error!(&e, ContractErrors::RecordDoesntExist),
+        };
+
+        if let Record::Domain(mut domain) = record {
+            domain.owner.require_auth();
+            domain.address = address;
+            e.set_record(&Record::Domain(domain));
+            e.bump_record(&key);
+        } else {
+            panic_with_error!(&e, ContractErrors::InvalidParent);
+        }
     }
 
     fn set_sub(e: Env, sub: Bytes, parent: RecordKeys, address: Address) {
@@ -200,6 +232,24 @@ impl RegistryContractTrait for RegistryContract {
     fn parse_domain(e: Env, domain: Bytes, tld: Bytes) -> BytesN<32> {
         e.bump_core();
         generate_node(&e, &domain, &tld)
+    }
+
+    fn transfer(e: Env, key: RecordKeys, to: Address) {
+        e.bump_core();
+        let record: Record = match e.record(&key) {
+            Some(record) => record,
+            None => panic_with_error!(&e, ContractErrors::RecordDoesntExist),
+        };
+
+        if let Record::Domain(mut domain) = record {
+            domain.owner.require_auth();
+            domain.owner = to;
+            domain.snapshot = e.ledger().timestamp();
+            e.set_record(&Record::Domain(domain));
+            e.bump_record(&key);
+        } else {
+            panic_with_error!(&e, ContractErrors::InvalidTransfer);
+        }
     }
 
     fn burn_record(e: Env, key: RecordKeys) {

@@ -12,4 +12,5 @@ pub enum ContractErrors {
     ExpiredDomain = 7,
     InvalidParent = 8,
     OutdatedSub = 9,
+    InvalidTransfer = 10,
 }

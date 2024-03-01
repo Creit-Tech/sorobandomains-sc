@@ -280,3 +280,55 @@ fn test_subdomains() {
 
     assert_eq!(updated_sub_domain_record.address, updated_address);
 }
+
+#[test]
+fn test_updating_address() {
+    let e: Env = Env::default();
+    let test_data: TestData = create_test_data(&e);
+    init_contract(&test_data);
+
+    let owner: Address = Address::generate(&e);
+    let address: Address = Address::generate(&e);
+    let second_address: Address = Address::generate(&e);
+
+    let new_domain: Bytes = Bytes::from_slice(&e, "stellar".as_bytes());
+    let tld: Bytes = Bytes::from_slice(&e, "xlm".as_bytes());
+
+    test_data.col_asset_stellar.mock_all_auths().mint(
+        &owner,
+        &(test_data.min_duration as i128 * test_data.node_rate as i128),
+    );
+
+    test_data.contract_client.mock_all_auths().set_record(
+        &new_domain,
+        &tld,
+        &owner,
+        &address,
+        &test_data.min_duration,
+    );
+
+    let node: BytesN<32> = test_data.contract_client.parse_domain(&new_domain, &tld);
+
+    let first_record: Domain = match test_data.contract_client.record(&RecordKeys::Record(node.clone())).unwrap() {
+        Record::Domain(domain) => domain,
+        Record::SubDomain(_) => panic!()
+    };
+
+    test_data.contract_client.mock_auths(&[MockAuth {
+        address: &owner,
+        invoke: &MockAuthInvoke {
+            contract: &test_data.contract_client.address,
+            fn_name: "update_address",
+            args: (RecordKeys::Record(node.clone()), second_address.clone()).into_val(&e),
+            sub_invokes: &[],
+        },
+    }]).update_address(&RecordKeys::Record(node.clone()), &second_address);
+
+    let second_record: Domain = match test_data.contract_client.record(&RecordKeys::Record(node.clone())).unwrap() {
+        Record::Domain(domain) => domain,
+        Record::SubDomain(_) => panic!()
+    };
+
+    assert_eq!(address, first_record.address);
+    assert_eq!(second_address, second_record.address);
+}
