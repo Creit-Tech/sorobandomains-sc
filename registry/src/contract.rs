@@ -178,7 +178,8 @@ impl RegistryContractTrait for RegistryContract {
                 panic_with_error!(&e, &ContractErrors::ExpiredDomain);
             }
 
-            let node_hash: BytesN<32> = generate_node(&e, &sub, &(Bytes::from(domain.node.clone())));
+            let node_hash: BytesN<32> =
+                generate_node(&e, &sub, &(Bytes::from(domain.node.clone())));
             let record_key: RecordKeys = RecordKeys::SubRecord(node_hash.clone());
 
             e.set_record(&Record::SubDomain(SubDomain {
@@ -212,7 +213,9 @@ impl RegistryContractTrait for RegistryContract {
                 Some(Record::Domain(domain))
             }
             Record::SubDomain(sub) => {
-                if let Record::Domain(domain) = e.record(&RecordKeys::Record(sub.parent.clone())).unwrap() {
+                if let Record::Domain(domain) =
+                    e.record(&RecordKeys::Record(sub.parent.clone())).unwrap()
+                {
                     if domain.exp_date < e.ledger().timestamp() {
                         panic_with_error!(&e, &ContractErrors::ExpiredDomain);
                     }
@@ -271,7 +274,9 @@ impl RegistryContractTrait for RegistryContract {
                 );
             }
             Record::SubDomain(sub) => {
-                if let Record::Domain(domain) = e.record(&RecordKeys::Record(sub.parent.clone())).unwrap() {
+                if let Record::Domain(domain) =
+                    e.record(&RecordKeys::Record(sub.parent.clone())).unwrap()
+                {
                     domain.owner.require_auth();
                 } else {
                     panic_with_error!(&e, &ContractErrors::InvalidParent);
