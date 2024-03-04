@@ -1,0 +1,3 @@
+# .git-blame-ignore-revs
+# Format code using `cargo fmt`.
+dde86e68796841b98931948431fa300db0a9ef91

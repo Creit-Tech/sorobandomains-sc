@@ -1,9 +1,9 @@
 #![cfg(test)]
 
-use soroban_sdk::{Address, Bytes, Env, BytesN, IntoVal};
-use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo, MockAuth, MockAuthInvoke};
 use crate::storage::record::{Domain, Record, RecordKeys};
 use crate::tests::test_utils::{create_test_data, init_contract, TestData};
+use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo, MockAuth, MockAuthInvoke};
+use soroban_sdk::{Address, Bytes, BytesN, Env, IntoVal};
 
 #[test]
 fn test_simple_transfer() {
@@ -32,9 +32,13 @@ fn test_simple_transfer() {
 
     let node: BytesN<32> = test_data.contract_client.parse_domain(&new_domain, &tld);
 
-    let first_record: Domain = match test_data.contract_client.record(&RecordKeys::Record(node.clone())).unwrap() {
+    let first_record: Domain = match test_data
+        .contract_client
+        .record(&RecordKeys::Record(node.clone()))
+        .unwrap()
+    {
         Record::Domain(domain) => domain,
-        Record::SubDomain(_) => panic!()
+        Record::SubDomain(_) => panic!(),
     };
 
     e.ledger().set(LedgerInfo {
@@ -48,19 +52,26 @@ fn test_simple_transfer() {
         max_entry_ttl: u32::MAX,
     });
 
-    test_data.contract_client.mock_auths(&[MockAuth {
-        address: &first_owner,
-        invoke: &MockAuthInvoke {
-            contract: &test_data.contract_client.address,
-            fn_name: "transfer",
-            args: (RecordKeys::Record(node.clone()), second_owner.clone()).into_val(&e),
-            sub_invokes: &[],
-        },
-    }]).transfer(&RecordKeys::Record(node.clone()), &second_owner);
+    test_data
+        .contract_client
+        .mock_auths(&[MockAuth {
+            address: &first_owner,
+            invoke: &MockAuthInvoke {
+                contract: &test_data.contract_client.address,
+                fn_name: "transfer",
+                args: (RecordKeys::Record(node.clone()), second_owner.clone()).into_val(&e),
+                sub_invokes: &[],
+            },
+        }])
+        .transfer(&RecordKeys::Record(node.clone()), &second_owner);
 
-    let second_record: Domain = match test_data.contract_client.record(&RecordKeys::Record(node.clone())).unwrap() {
+    let second_record: Domain = match test_data
+        .contract_client
+        .record(&RecordKeys::Record(node.clone()))
+        .unwrap()
+    {
         Record::Domain(domain) => domain,
-        Record::SubDomain(_) => panic!()
+        Record::SubDomain(_) => panic!(),
     };
 
     assert_eq!(first_owner, first_record.owner);
@@ -69,13 +80,17 @@ fn test_simple_transfer() {
     assert_eq!(10, second_record.snapshot);
 
     // It should fail because first owner is no the owner anymore
-    assert!(test_data.contract_client.mock_auths(&[MockAuth {
-        address: &first_owner,
-        invoke: &MockAuthInvoke {
-            contract: &test_data.contract_client.address,
-            fn_name: "transfer",
-            args: (RecordKeys::Record(node.clone()), second_owner.clone()).into_val(&e),
-            sub_invokes: &[],
-        },
-    }]).try_transfer(&RecordKeys::Record(node.clone()), &second_owner).is_err());
+    assert!(test_data
+        .contract_client
+        .mock_auths(&[MockAuth {
+            address: &first_owner,
+            invoke: &MockAuthInvoke {
+                contract: &test_data.contract_client.address,
+                fn_name: "transfer",
+                args: (RecordKeys::Record(node.clone()), second_owner.clone()).into_val(&e),
+                sub_invokes: &[],
+            },
+        }])
+        .try_transfer(&RecordKeys::Record(node.clone()), &second_owner)
+        .is_err());
 }
