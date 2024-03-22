@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::contract::{RegistryContract, RegistryContractClient};
+use crate::storage::core::OffersConfig;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{token, Address, Bytes, Env, Vec};
 
@@ -26,6 +27,9 @@ pub struct TestData<'a> {
     pub col_asset_stellar: token::StellarAssetClient<'a>,
     pub min_duration: u64,
     pub allowed_tlds: Vec<Bytes>,
+
+    pub fee_taker: Address,
+    pub offer_fee: u128,
 }
 
 pub fn create_test_data<'a>(e: &Env) -> TestData<'a> {
@@ -48,6 +52,9 @@ pub fn create_test_data<'a>(e: &Env) -> TestData<'a> {
         ],
     );
 
+    let fee_taker: Address = Address::generate(&e);
+    let offer_fee: u128 = 3_5000000;
+
     TestData {
         contract_client,
         adm,
@@ -58,6 +65,8 @@ pub fn create_test_data<'a>(e: &Env) -> TestData<'a> {
         col_asset_stellar,
         min_duration,
         allowed_tlds,
+        fee_taker,
+        offer_fee,
     }
 }
 
@@ -69,4 +78,12 @@ pub fn init_contract(test_data: &TestData) {
         &test_data.min_duration,
         &test_data.allowed_tlds,
     );
+
+    test_data
+        .contract_client
+        .mock_all_auths()
+        .set_offers_config(&OffersConfig {
+            fee_taker: test_data.fee_taker.clone(),
+            fee: test_data.offer_fee.clone(),
+        });
 }

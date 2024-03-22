@@ -792,6 +792,7 @@ dependencies = [
 name = "registry"
 version = "0.2.0"
 dependencies = [
+ "num-integer",
  "soroban-sdk",
 ]
 
