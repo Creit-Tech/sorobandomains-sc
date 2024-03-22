@@ -1,7 +1,10 @@
 use crate::errors::ContractErrors;
-use crate::storage::core::{CoreData, CoreDataEntity};
+use crate::storage::core::{CoreData, CoreDataEntity, OffersConfig};
+use crate::storage::offers::{Offer, OffersDataKeys, OffersFunc};
 use crate::storage::record::{Domain, Record, RecordEntity, RecordKeys, SubDomain};
+use crate::utils::offers::{set_new_buy_offer, set_sale_offer, update_buy_offer};
 use crate::utils::records::{generate_node, validate_domain};
+use num_integer::div_ceil;
 use soroban_sdk::{
     contract, contractimpl, panic_with_error, token, Address, Bytes, BytesN, Env, Vec,
 };
@@ -15,6 +18,9 @@ pub trait RegistryContractTrait {
         min_duration: u64,
         allowed_tlds: Vec<Bytes>,
     );
+
+    fn set_offers_config(e: Env, offers_config: OffersConfig);
+
     fn upgrade(e: Env, new_wasm_hash: BytesN<32>);
     fn update_tlds(e: Env, tlds: Vec<Bytes>);
 
@@ -42,6 +48,21 @@ pub trait RegistryContractTrait {
 
     // When burning a record, the record gets removed from the storage and the collateral is released
     fn burn_record(e: Env, key: RecordKeys);
+
+    // Users can set a domain for sale or set a buy offer for that domain
+    // Users set the offer amount and if is a buy offer the contract takes the amount and keep it in case the owner accepts it
+    // If the offer to set is a BuyOffer and there is already one set we check if the amount is higher,
+    // if is not higher we reject it and if is higher we return the amount to the old offer owner, and we take the new one.
+    // If is a BuyOffer, the amount needs to be higher than the domain collateral
+    fn set_offer(e: Env, caller: Address, node: BytesN<32>, amount: u128);
+
+    // An offer needs to be valid (same snapshot number) in order to be accepted
+    // If is a SaleOffer, the domain is transferred to the "caller" and the "caller" transfer the funds to the old owner of the domain
+    // If is a BuyOffer, the amount is sent to the old owner of the domain from the contract and the domain is transferred to the "buyer" in the Offer
+    // The protocol fee is taken at the moment of the transfer, if there is no fee then the default is 3%
+    fn take_offer(e: Env, caller: Address, node: BytesN<32>);
+
+    fn burn_offer(e: Env, key: OffersDataKeys);
 }
 
 #[contract]
@@ -69,6 +90,12 @@ impl RegistryContractTrait for RegistryContract {
             });
             e.bump_core();
         }
+    }
+
+    fn set_offers_config(e: Env, offers_config: OffersConfig) {
+        e.bump_core();
+        e.is_adm();
+        e.set_offers_config(&offers_config);
     }
 
     fn upgrade(e: Env, hash: BytesN<32>) {
@@ -286,5 +313,184 @@ impl RegistryContractTrait for RegistryContract {
         }
 
         // TODO: Add event
+    }
+
+    fn set_offer(e: Env, caller: Address, node: BytesN<32>, amount: u128) {
+        e.bump_core();
+        caller.require_auth();
+
+        let record: Record = match e.record(&RecordKeys::Record(node.clone())) {
+            Some(record) => record,
+            None => panic_with_error!(&e, ContractErrors::RecordDoesntExist),
+        };
+
+        e.bump_record(&RecordKeys::Record(node.clone()));
+
+        let domain: Domain = match record {
+            Record::Domain(v) => v,
+            // Should be impossible to reach this, but we panic just in case
+            Record::SubDomain(_) => panic_with_error!(&e, ContractErrors::InvalidDomain),
+        };
+
+        let is_sale: bool = domain.owner == caller;
+
+        if !is_sale && amount <= domain.collateral {
+            panic_with_error!(&e, &ContractErrors::InvalidOfferAmount);
+        }
+
+        let offer_key: OffersDataKeys = if is_sale {
+            OffersDataKeys::SaleOffer(node.clone())
+        } else {
+            OffersDataKeys::BuyOffer(node.clone())
+        };
+        let offer: Option<Offer> = e._offers().get(&offer_key);
+
+        match offer {
+            None => {
+                if is_sale {
+                    set_sale_offer(&e, &domain, &amount);
+                } else {
+                    set_new_buy_offer(&e, &e.core_data().unwrap(), &caller, &domain, &amount);
+                }
+            }
+            Some(old_offer) => match old_offer {
+                Offer::BuyOffer(old_buy_offer) => {
+                    // We shouldn't be able to pass this condition but just in case we panic.
+                    if is_sale {
+                        panic_with_error!(&e, &ContractErrors::UnexpectedError);
+                    }
+
+                    update_buy_offer(
+                        &e,
+                        &e.core_data().unwrap(),
+                        &caller,
+                        &old_buy_offer,
+                        &domain,
+                        &amount,
+                    );
+                }
+                Offer::SaleOffer(_) => {
+                    set_sale_offer(&e, &domain, &amount);
+                }
+            },
+        }
+    }
+
+    fn take_offer(e: Env, caller: Address, node: BytesN<32>) {
+        e.bump_core();
+        caller.require_auth();
+
+        let mut domain: Domain = match e.record(&RecordKeys::Record(node.clone())).unwrap() {
+            Record::Domain(d) => d,
+            Record::SubDomain(_) => panic_with_error!(&e, &ContractErrors::InvalidDomain),
+        };
+
+        // In this case the condition is the other way around because the seller (domain owner)
+        // is accepting a buy Offer instead of making its own sale offer
+        let is_seller: bool = domain.owner != caller;
+
+        let offer_key: OffersDataKeys = if is_seller {
+            OffersDataKeys::SaleOffer(node.clone())
+        } else {
+            OffersDataKeys::BuyOffer(node.clone())
+        };
+
+        let offer: Offer = e._offers().get(&offer_key).unwrap();
+        let core_data: CoreData = e.core_data().unwrap();
+        let offers_config: OffersConfig = e.offers_config().unwrap();
+
+        match offer {
+            Offer::BuyOffer(buy_offer) => {
+                if domain.snapshot != buy_offer.snapshot {
+                    panic_with_error!(&e, &ContractErrors::OutdatedOffer);
+                }
+
+                let profit: u128 = buy_offer.amount - domain.collateral;
+                // TODO: Test minimal fee (for example a profit of 0_0000001)
+                let fee: u128 = div_ceil(profit * offers_config.fee, 100_0000000);
+
+                token::Client::new(&e, &core_data.col_asset).transfer(
+                    &e.current_contract_address(),
+                    &domain.owner,
+                    &((buy_offer.amount - fee) as i128),
+                );
+
+                token::Client::new(&e, &core_data.col_asset).transfer(
+                    &e.current_contract_address(),
+                    &offers_config.fee_taker,
+                    &(fee as i128),
+                );
+
+                domain.owner = buy_offer.buyer.clone();
+                domain.address = buy_offer.buyer;
+                domain.snapshot = e.ledger().timestamp();
+                e.set_record(&Record::Domain(domain));
+                e._offers().burn(&OffersDataKeys::BuyOffer(buy_offer.node));
+            }
+            Offer::SaleOffer(sale_offer) => {
+                if domain.snapshot != sale_offer.snapshot {
+                    panic_with_error!(&e, &ContractErrors::OutdatedOffer);
+                }
+
+                let profit: u128 = sale_offer.amount - domain.collateral;
+                let fee: u128 = div_ceil(profit * offers_config.fee, 100_0000000);
+
+                token::Client::new(&e, &core_data.col_asset).transfer(
+                    &caller,
+                    &domain.owner,
+                    &((sale_offer.amount - fee) as i128),
+                );
+
+                token::Client::new(&e, &core_data.col_asset).transfer(
+                    &caller,
+                    &offers_config.fee_taker,
+                    &(fee as i128),
+                );
+
+                domain.owner = caller.clone();
+                domain.address = caller;
+                domain.snapshot = e.ledger().timestamp();
+                e.set_record(&Record::Domain(domain));
+                e._offers().burn(&OffersDataKeys::BuyOffer(sale_offer.node));
+            }
+        }
+
+        e.bump_record(&RecordKeys::Record(node.clone()));
+    }
+
+    fn burn_offer(e: Env, key: OffersDataKeys) {
+        e.bump_core();
+        let offer: Offer = e._offers().get(&key).unwrap_or_else(|| {
+            panic_with_error!(&e, &ContractErrors::OfferDoesntExist);
+        });
+
+        match offer {
+            Offer::BuyOffer(buy_offer) => {
+                buy_offer.buyer.require_auth();
+
+                token::Client::new(&e, &e.core_data().unwrap().col_asset).transfer(
+                    &e.current_contract_address(),
+                    &buy_offer.buyer,
+                    &(buy_offer.amount as i128),
+                );
+
+                e._offers().burn(&key);
+            }
+            Offer::SaleOffer(sale_offer) => {
+                let domain: Record = e
+                    .record(&RecordKeys::Record(sale_offer.node))
+                    .unwrap_or_else(|| {
+                        panic_with_error!(&e, &ContractErrors::RecordDoesntExist);
+                    });
+
+                match domain {
+                    Record::Domain(domain) => {
+                        domain.owner.require_auth();
+                        e._offers().burn(&key);
+                    }
+                    Record::SubDomain(_) => panic_with_error!(&e, &ContractErrors::InvalidDomain),
+                };
+            }
+        }
     }
 }

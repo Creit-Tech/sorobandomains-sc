@@ -19,14 +19,23 @@ pub struct CoreData {
 }
 
 #[contracttype]
+pub struct OffersConfig {
+    pub fee_taker: Address,
+    pub fee: u128,
+}
+
+#[contracttype]
 pub enum CoreDataKeys {
     CoreData,
+    OffersConfig,
 }
 
 pub trait CoreDataEntity {
     fn bump_core(&self);
     fn set_core_data(&self, core_data: &CoreData);
     fn core_data(&self) -> Option<CoreData>;
+    fn set_offers_config(&self, v: &OffersConfig);
+    fn offers_config(&self) -> Option<OffersConfig>;
     fn is_adm(&self);
 }
 
@@ -44,6 +53,16 @@ impl CoreDataEntity for Env {
 
     fn core_data(&self) -> Option<CoreData> {
         self.storage().instance().get(&CoreDataKeys::CoreData)
+    }
+
+    fn set_offers_config(&self, v: &OffersConfig) {
+        self.storage()
+            .instance()
+            .set(&CoreDataKeys::OffersConfig, v);
+    }
+
+    fn offers_config(&self) -> Option<OffersConfig> {
+        self.storage().instance().get(&CoreDataKeys::OffersConfig)
     }
 
     fn is_adm(&self) {
