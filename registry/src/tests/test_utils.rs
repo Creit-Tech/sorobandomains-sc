@@ -82,8 +82,5 @@ pub fn init_contract(test_data: &TestData) {
     test_data
         .contract_client
         .mock_all_auths()
-        .set_offers_config(&OffersConfig {
-            fee_taker: test_data.fee_taker.clone(),
-            fee: test_data.offer_fee.clone(),
-        });
+        .set_offers_config(&test_data.fee_taker, &test_data.offer_fee);
 }

@@ -1,4 +1,5 @@
 use crate::errors::ContractErrors;
+use crate::events::emit_offer_accepted;
 use crate::storage::core::{CoreData, CoreDataEntity, OffersConfig};
 use crate::storage::offers::{Offer, OffersDataKeys, OffersFunc};
 use crate::storage::record::{Domain, Record, RecordEntity, RecordKeys, SubDomain};
@@ -6,7 +7,8 @@ use crate::utils::offers::{set_new_buy_offer, set_sale_offer, update_buy_offer};
 use crate::utils::records::{generate_node, validate_domain};
 use num_integer::div_ceil;
 use soroban_sdk::{
-    contract, contractimpl, panic_with_error, token, Address, Bytes, BytesN, Env, Vec,
+    contract, contractimpl, panic_with_error, symbol_short, token, Address, Bytes, BytesN, Env,
+    Symbol, Vec,
 };
 
 pub trait RegistryContractTrait {
@@ -19,7 +21,7 @@ pub trait RegistryContractTrait {
         allowed_tlds: Vec<Bytes>,
     );
 
-    fn set_offers_config(e: Env, offers_config: OffersConfig);
+    fn set_offers_config(e: Env, fee_taker: Address, fee: u128);
 
     fn upgrade(e: Env, new_wasm_hash: BytesN<32>);
     fn update_tlds(e: Env, tlds: Vec<Bytes>);
@@ -92,10 +94,10 @@ impl RegistryContractTrait for RegistryContract {
         }
     }
 
-    fn set_offers_config(e: Env, offers_config: OffersConfig) {
+    fn set_offers_config(e: Env, fee_taker: Address, fee: u128) {
         e.bump_core();
         e.is_adm();
-        e.set_offers_config(&offers_config);
+        e.set_offers_config(&OffersConfig { fee_taker, fee });
     }
 
     fn upgrade(e: Env, hash: BytesN<32>) {
@@ -421,6 +423,14 @@ impl RegistryContractTrait for RegistryContract {
                     &(fee as i128),
                 );
 
+                emit_offer_accepted(
+                    &e,
+                    &buy_offer.buyer,
+                    &domain.owner,
+                    &domain.node,
+                    &buy_offer.amount,
+                );
+
                 domain.owner = buy_offer.buyer.clone();
                 domain.address = buy_offer.buyer;
                 domain.snapshot = e.ledger().timestamp();
@@ -447,11 +457,14 @@ impl RegistryContractTrait for RegistryContract {
                     &(fee as i128),
                 );
 
+                emit_offer_accepted(&e, &caller, &domain.owner, &domain.node, &sale_offer.amount);
+
                 domain.owner = caller.clone();
                 domain.address = caller;
                 domain.snapshot = e.ledger().timestamp();
                 e.set_record(&Record::Domain(domain));
-                e._offers().burn(&OffersDataKeys::BuyOffer(sale_offer.node));
+                e._offers()
+                    .burn(&OffersDataKeys::SaleOffer(sale_offer.node));
             }
         }
 
