@@ -421,7 +421,7 @@ pub fn test_take_sale_offer() {
     e.as_contract(&test_data.contract_client.address, || {
         assert!(e
             ._offers()
-            .get(&&OffersDataKeys::BuyOffer(target_domain.clone()))
+            .get(&OffersDataKeys::SaleOffer(target_domain.clone()))
             .is_none());
     });
 
@@ -494,7 +494,7 @@ pub fn test_take_buy_offer() {
     e.as_contract(&test_data.contract_client.address, || {
         assert!(e
             ._offers()
-            .get(&&OffersDataKeys::BuyOffer(target_domain.clone()))
+            .get(&OffersDataKeys::BuyOffer(target_domain.clone()))
             .is_none());
     });
 

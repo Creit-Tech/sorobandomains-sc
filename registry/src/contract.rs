@@ -19,7 +19,7 @@ pub trait RegistryContractTrait {
         allowed_tlds: Vec<Bytes>,
     );
 
-    fn set_offers_config(e: Env, offers_config: OffersConfig);
+    fn set_offers_config(e: Env, fee_taker: Address, fee: u128);
 
     fn upgrade(e: Env, new_wasm_hash: BytesN<32>);
     fn update_tlds(e: Env, tlds: Vec<Bytes>);
@@ -92,10 +92,10 @@ impl RegistryContractTrait for RegistryContract {
         }
     }
 
-    fn set_offers_config(e: Env, offers_config: OffersConfig) {
+    fn set_offers_config(e: Env, fee_taker: Address, fee: u128) {
         e.bump_core();
         e.is_adm();
-        e.set_offers_config(&offers_config);
+        e.set_offers_config(&OffersConfig { fee_taker, fee });
     }
 
     fn upgrade(e: Env, hash: BytesN<32>) {
@@ -451,7 +451,8 @@ impl RegistryContractTrait for RegistryContract {
                 domain.address = caller;
                 domain.snapshot = e.ledger().timestamp();
                 e.set_record(&Record::Domain(domain));
-                e._offers().burn(&OffersDataKeys::BuyOffer(sale_offer.node));
+                e._offers()
+                    .burn(&OffersDataKeys::SaleOffer(sale_offer.node));
             }
         }
 
