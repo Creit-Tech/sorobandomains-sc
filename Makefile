@@ -1,10 +1,6 @@
 build:
 	soroban contract build
 
-build-optimized:
-	soroban contract build
-	soroban contract optimize --wasm ./target/wasm32-unknown-unknown/release/registry.wasm --wasm-out ./target/wasm32-unknown-unknown/release/registry.wasm
-
 test:
 	soroban contract build
 	cargo test
