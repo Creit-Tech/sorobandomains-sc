@@ -7,8 +7,7 @@ use crate::utils::offers::{set_new_buy_offer, set_sale_offer, update_buy_offer};
 use crate::utils::records::{generate_node, validate_domain};
 use num_integer::div_ceil;
 use soroban_sdk::{
-    contract, contractimpl, panic_with_error, symbol_short, token, Address, Bytes, BytesN, Env,
-    Symbol, Vec,
+    contract, contractimpl, panic_with_error, token, Address, Bytes, BytesN, Env, Vec,
 };
 
 pub trait RegistryContractTrait {

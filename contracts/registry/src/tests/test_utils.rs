@@ -1,7 +1,6 @@
 #![cfg(test)]
 
 use crate::contract::{RegistryContract, RegistryContractClient};
-use crate::storage::core::OffersConfig;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{token, Address, Bytes, Env, Vec};
 
