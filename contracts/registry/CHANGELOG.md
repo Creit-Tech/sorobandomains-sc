@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### 0.3.0 (2024-04-06)
+
+#### Add
+
+- Add `set_offer`, `take_offer` and `burn_offer` functions. From now users of the protocol can set buy/sale offers for
+  domains, the protocol takes a fee on each sale and sends it to the `fee_taker` specified in the contract
+- Add an event for function `take_offer` with the information of the transaction
+
 ### 0.2.0 (2024-03-01)
 
 #### Add
