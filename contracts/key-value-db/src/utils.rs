@@ -1,6 +1,7 @@
 use crate::errors::ContractErrors;
 use crate::registry::{ContractErrors as RegistryErrors, Domain, Record, RecordKeys};
-use crate::{StorageKeys, Value, LEDGER_DAY};
+use crate::types::{StorageKeys, Value};
+use crate::LEDGER_DAY;
 use soroban_sdk::{panic_with_error, symbol_short, token, Address, BytesN, Env, IntoVal, Symbol};
 
 pub fn set_key(e: &Env, node: &BytesN<32>, key: &Symbol, value: &Value, snapshot: &u64) {

@@ -1,8 +1,9 @@
 build:
-	soroban contract build
+	stellar contract build --package registry
+	stellar contract build --package key-value-db
 
 test:
-	soroban contract build
+	make build
 	cargo test
 
 launch_standalone:
