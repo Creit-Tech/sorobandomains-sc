@@ -17,4 +17,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup update
-      - run: cargo test
+      - run: make test
