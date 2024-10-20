@@ -1,5 +1,12 @@
 name: Build and Release Key Value DB contract
 on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Unique release name'
+        required: true
+        type: string
+
   push:
     tags:
       - db-v*
@@ -10,7 +17,8 @@ jobs:
     with:
       release_name: ${{ github.ref_name }}
       release_description: 'KeyValueDB contract'
-      relative_path: '["contracts/key-value-db"]'  # relative path to your really awesome contract
+      relative_path: '["contracts/key-value-db"]'
+      package: 'key-value-db'
       make_target: 'build'
     secrets: # the authentication token will be automatically created by GitHub
       release_token: ${{ secrets.GITHUB_TOKEN }}
