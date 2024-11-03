@@ -13,5 +13,5 @@ soroban-sdk = { workspace = true }
 version = "0.1.45"
 default-features = false
 
-[dev_dependencies]
+[dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
