@@ -183,3 +183,36 @@ pub mod key_value_db {
         );
     }
 }
+
+pub mod reverse_registrar_contract {
+    soroban_sdk::contractimport!(
+        file = "../target/wasm32-unknown-unknown/release/reverse_registrar.wasm"
+    );
+}
+
+pub mod reverse_registrar {
+    use crate::{registry, reverse_registrar_contract, GlobalTestData};
+    use soroban_sdk::{Address, Env};
+
+    pub struct TestData<'a> {
+        pub contract_client: reverse_registrar_contract::Client<'a>,
+    }
+
+    pub fn create_test_data<'a>(e: &Env) -> TestData<'a> {
+        let contract_id: Address = e.register_contract_wasm(None, reverse_registrar_contract::WASM);
+        let contract_client: reverse_registrar_contract::Client<'a> =
+            reverse_registrar_contract::Client::new(&e, &contract_id);
+        TestData { contract_client }
+    }
+
+    pub fn init_contract(
+        global_test_data: &GlobalTestData,
+        registry_test_data: &registry::TestData,
+        test_data: &TestData,
+    ) {
+        test_data.contract_client.init(
+            &global_test_data.adm,
+            &registry_test_data.contract_client.address,
+        );
+    }
+}
