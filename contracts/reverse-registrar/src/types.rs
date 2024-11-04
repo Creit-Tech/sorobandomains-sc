@@ -11,8 +11,9 @@ pub struct Domain {
     pub sld: Bytes,
 
     /// A list of subdomains, e.g., ["a", "b"] in `a.b.example.xlm`.
-    /// Supports only an empty list or a single subdomain currently.
-    pub subdomains: Vec<Bytes>,
+    /// Currently, the maximum number of subdomains is 1, but more can be added in the future.
+    /// Keep it empty if there are no subdomains.
+    pub subs: Vec<Bytes>,
 }
 
 #[contracttype]

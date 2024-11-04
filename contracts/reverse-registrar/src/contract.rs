@@ -115,7 +115,7 @@ impl ReverseRegistrarTrait for ReverseRegistrar {
 
 fn validate_reverse_record(e: &Env, address: &Address, domain: &Domain) -> Result<(), Error> {
     let mut domain_node = generate_node(&e, &domain.sld, &domain.tld);
-    if domain.subdomains.is_empty() {
+    if domain.subs.is_empty() {
         let Record::Domain(sld_domain) = fetch_domain_record(&e, &domain_node, false)? else {
             panic!("unreachable");
         };
@@ -125,7 +125,7 @@ fn validate_reverse_record(e: &Env, address: &Address, domain: &Domain) -> Resul
         };
     }
 
-    if domain.subdomains.len() != 1 {
+    if domain.subs.len() != 1 {
         // Only one subdomain is allowed.
         // If registry allows more than one subdomain, this contract should be updated.
         return Err(Error::NotImplemented);
@@ -133,7 +133,7 @@ fn validate_reverse_record(e: &Env, address: &Address, domain: &Domain) -> Resul
 
     domain_node = generate_node(
         &e,
-        &domain.subdomains.first().unwrap(),
+        &domain.subs.first().unwrap(),
         &domain_node.try_into().unwrap(),
     );
     let Record::SubDomain(subdomain) = fetch_domain_record(&e, &domain_node, true)? else {

@@ -66,7 +66,7 @@ fn test_set_and_get_domain() {
     let domain = Domain {
         tld,
         sld: domain,
-        subdomains: Vec::new(&e),
+        subs: Vec::new(&e),
     };
     reverse_registrar_test_data
         .contract_client
@@ -122,7 +122,7 @@ fn test_set_and_get_subdomain() {
     let domain = Domain {
         tld,
         sld: domain,
-        subdomains: vec![&e, Bytes::from_slice(&e, "payments".as_bytes())],
+        subs: vec![&e, Bytes::from_slice(&e, "payments".as_bytes())],
     };
 
     reverse_registrar_test_data
@@ -171,7 +171,7 @@ fn test_unset() {
     let domain = Domain {
         tld,
         sld: domain,
-        subdomains: Vec::new(&e),
+        subs: Vec::new(&e),
     };
     reverse_registrar_test_data
         .contract_client
