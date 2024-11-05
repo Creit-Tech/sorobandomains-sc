@@ -1,17 +1,10 @@
 [package]
-name = "registry"
-version = "0.3.0"
+name = "common"
+version = "0.1.0"
 edition = "2021"
-
-[lib]
-crate-type = ["cdylib"]
 
 [dependencies]
 soroban-sdk = { workspace = true }
-
-[dependencies.num-integer]
-version = "0.1.45"
-default-features = false
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

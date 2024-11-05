@@ -1,6 +1,6 @@
 [package]
-name = "registry"
-version = "0.3.0"
+name = "reverse-registrar"
+version = "0.1.0"
 edition = "2021"
 
 [lib]
@@ -8,10 +8,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 soroban-sdk = { workspace = true }
-
-[dependencies.num-integer]
-version = "0.1.45"
-default-features = false
+common = { path = "../../common" }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+test_utils = { path = "../../test_utils" }

@@ -1,6 +1,7 @@
 build:
 	stellar contract build --package registry
 	stellar contract build --package key-value-db
+	stellar contract build --package reverse-registrar
 
 test:
 	make build
