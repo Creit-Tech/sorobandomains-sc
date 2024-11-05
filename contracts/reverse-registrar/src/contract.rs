@@ -62,7 +62,6 @@ pub struct ReverseRegistrar;
 impl ReverseRegistrarTrait for ReverseRegistrar {
     fn set_config(e: Env, admin: Address, registry: Address) {
         bump_instance(&e);
-
         if let Some(current_admin) = get_admin(&e) {
             current_admin.require_auth();
         }
@@ -80,17 +79,35 @@ impl ReverseRegistrarTrait for ReverseRegistrar {
 
     fn set(e: Env, address: Address, domain: Option<Domain>) -> Result<(), Error> {
         bump_instance(&e);
-
         address.require_auth();
-        if let Some(domain) = domain {
-            validate_reverse_record(&e, &address, &domain)?;
-            e.storage().persistent().set(&address, &domain);
-            emit_domain_updated(&e, address, Some::<Domain>(domain));
-        } else {
-            e.storage().persistent().remove(&address);
-            emit_domain_updated(&e, address, None::<Domain>);
+
+        let current_domain = e.storage().persistent().get::<Address, Domain>(&address);
+        match (current_domain, domain) {
+            // If both current and new domains exist and are equal
+            (Some(current), Some(new)) if current == new => {
+                validate_reverse_record(&e, &address, &current)?;
+                bump_record(&e, &address);
+                Ok(())
+            }
+
+            // If setting a new domain
+            (_, Some(new)) => {
+                validate_reverse_record(&e, &address, &new)?;
+                e.storage().persistent().set(&address, &new);
+                emit_domain_updated(&e, address, Some(new));
+                Ok(())
+            }
+
+            // If removing domain and current record exists
+            (Some(_), None) => {
+                e.storage().persistent().remove(&address);
+                emit_domain_updated(&e, address, None::<Domain>);
+                Ok(())
+            }
+
+            // If removing domain but no current record exists, do nothing
+            (None, None) => Ok(()),
         }
-        Ok(())
     }
 
     fn get(e: Env, address: Address) -> Option<Domain> {
@@ -177,6 +194,6 @@ fn bump_record(e: &Env, address: &Address) {
         .extend_ttl(address, LEDGER_DAY * 30, LEDGER_DAY * 60);
 }
 
-pub fn get_admin(e: &Env) -> Option<Address> {
+fn get_admin(e: &Env) -> Option<Address> {
     e.storage().instance().get(&CoreDataKeys::Admin)
 }

@@ -3,6 +3,7 @@ use soroban_sdk::{contracttype, Bytes, Vec};
 // Represents a domain structure with a top-level domain (TLD),
 // second-level domain (SLD), and a vector of subdomains.
 #[contracttype]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Domain {
     // The top-level domain (TLD), e.g., "xlm" in `a.b.example.xlm`.
     pub tld: Bytes,
