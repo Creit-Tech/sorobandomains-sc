@@ -12,50 +12,46 @@ use soroban_sdk::{
 const LEDGER_DAY: u32 = 17_280;
 
 pub trait ReverseRegistrarTrait {
-    /// Initialize the contract with the admin and registry addresses.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The environment in which the contract is executed.
-    /// * `admin` - The address of the admin.
-    /// * `registry` - The address of the registry.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), Error>` - Returns an error if the contract is already initialized.
-    fn init(e: Env, admin: Address, registry: Address) -> Result<(), Error>;
+    // Set the configuration for the contract.
+    //
+    // # Arguments
+    //
+    // * `e` - The environment in which the contract is executed.
+    // * `admin` - The address of the admin.
+    // * `registry` - The address of the registry.
+    fn set_config(e: Env, admin: Address, registry: Address);
 
-    /// Upgrade the contract to a new version.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The environment in which the contract is executed.
-    /// * `hash` - The hash of the new contract.
+    // Upgrade the contract to a new version.
+    //
+    // # Arguments
+    //
+    // * `e` - The environment in which the contract is executed.
+    // * `hash` - The hash of the new contract.
     fn upgrade(e: Env, hash: BytesN<32>);
 
-    /// Set the reverse domain for an address.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The environment in which the contract is executed.
-    /// * `address` - The address for which the reverse domain is being set.
-    /// * `domain` - The reverse domain to set, or `None` to remove the reverse domain.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), Error>` - Returns an error if the operation fails.
+    // Set the reverse domain for an address.
+    //
+    // # Arguments
+    //
+    // * `e` - The environment in which the contract is executed.
+    // * `address` - The address for which the reverse domain is being set.
+    // * `domain` - The reverse domain to set, or `None` to remove the reverse domain.
+    //
+    // # Returns
+    //
+    // * `Result<(), Error>` - Returns an error if the operation fails.
     fn set(e: Env, address: Address, domain: Option<Domain>) -> Result<(), Error>;
 
-    /// Get the reverse domain for an address.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The environment in which the contract is executed.
-    /// * `address` - The address for which the reverse domain is being retrieved.
-    ///
-    /// # Returns
-    ///
-    /// * `Option<Domain>` - The reverse domain if it exists, otherwise `None`.
+    // Get the reverse domain for an address.
+    //
+    // # Arguments
+    //
+    // * `e` - The environment in which the contract is executed.
+    // * `address` - The address for which the reverse domain is being retrieved.
+    //
+    // # Returns
+    //
+    // * `Option<Domain>` - The reverse domain if it exists, otherwise `None`.
     fn get(e: Env, address: Address) -> Option<Domain>;
 }
 
@@ -64,32 +60,28 @@ pub struct ReverseRegistrar;
 
 #[contractimpl]
 impl ReverseRegistrarTrait for ReverseRegistrar {
-    fn init(e: Env, admin: Address, registry: Address) -> Result<(), Error> {
-        if e.storage().instance().has(&CoreDataKeys::Admin) {
-            return Err(Error::AlreadyInitialized);
-        }
+    fn set_config(e: Env, admin: Address, registry: Address) {
+        bump_instance(&e);
 
+        if let Some(current_admin) = get_admin(&e) {
+            current_admin.require_auth();
+        }
         e.storage().instance().set(&CoreDataKeys::Admin, &admin);
         e.storage()
             .instance()
             .set(&CoreDataKeys::Registry, &registry);
-        Ok(())
     }
 
     fn upgrade(e: Env, hash: BytesN<32>) {
-        e.storage()
-            .instance()
-            .get::<CoreDataKeys, Address>(&CoreDataKeys::Admin)
-            .unwrap()
-            .require_auth();
-
+        bump_instance(&e);
+        get_admin(&e).unwrap().require_auth();
         e.deployer().update_current_contract_wasm(hash);
     }
 
     fn set(e: Env, address: Address, domain: Option<Domain>) -> Result<(), Error> {
-        address.require_auth();
         bump_instance(&e);
 
+        address.require_auth();
         if let Some(domain) = domain {
             validate_reverse_record(&e, &address, &domain)?;
             e.storage().persistent().set(&address, &domain);
@@ -183,4 +175,8 @@ fn bump_record(e: &Env, address: &Address) {
     e.storage()
         .persistent()
         .extend_ttl(address, LEDGER_DAY * 30, LEDGER_DAY * 60);
+}
+
+pub fn get_admin(e: &Env) -> Option<Address> {
+    e.storage().instance().get(&CoreDataKeys::Admin)
 }

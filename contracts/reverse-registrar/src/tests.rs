@@ -12,29 +12,6 @@ use test_utils::{
 };
 
 #[test]
-fn test_reinit() {
-    let e: Env = Env::default();
-    let global_test_data: GlobalTestData = create_global_test_data(&e);
-    let registry_test_data: registry::TestData = registry::create_test_data(&e);
-    let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
-    registry::init_contract(&global_test_data, &registry_test_data);
-    reverse_registrar::init_contract(
-        &global_test_data,
-        &registry_test_data,
-        &reverse_registrar_test_data,
-    );
-
-    let admin: Address = Address::generate(&e);
-    assert_eq!(
-        reverse_registrar_test_data
-            .contract_client
-            .try_init(&admin, &registry_test_data.contract_client.address)
-            .is_err(),
-        true
-    );
-}
-
-#[test]
 fn test_set_and_get_domain() {
     let e: Env = Env::default();
     let global_test_data: GlobalTestData = create_global_test_data(&e);

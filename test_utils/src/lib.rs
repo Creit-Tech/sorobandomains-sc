@@ -210,7 +210,7 @@ pub mod reverse_registrar {
         registry_test_data: &registry::TestData,
         test_data: &TestData,
     ) {
-        test_data.contract_client.init(
+        test_data.contract_client.set_config(
             &global_test_data.adm,
             &registry_test_data.contract_client.address,
         );
