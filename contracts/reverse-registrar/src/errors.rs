@@ -7,4 +7,5 @@ pub enum Error {
     FailedToGetRecord = 1,
     AddressMismatch = 2,
     NotImplemented = 3,
+    FailedToPayFee = 4,
 }

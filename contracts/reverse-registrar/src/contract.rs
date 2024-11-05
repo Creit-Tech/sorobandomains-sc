@@ -5,9 +5,7 @@ use crate::{
     types::{CoreDataKeys, Domain},
 };
 use common::utils::generate_node;
-use soroban_sdk::{
-    contract, contractimpl, panic_with_error, symbol_short, Address, BytesN, Env, IntoVal,
-};
+use soroban_sdk::{contract, contractimpl, symbol_short, token, Address, BytesN, Env, IntoVal};
 
 const LEDGER_DAY: u32 = 17_280;
 
@@ -19,7 +17,17 @@ pub trait ReverseRegistrarTrait {
     // * `e` - The environment in which the contract is executed.
     // * `admin` - The address of the admin.
     // * `registry` - The address of the registry.
-    fn set_config(e: Env, admin: Address, registry: Address);
+    // * `fee` - The fee to be paid for adding or updating a reverse domain.
+    // * `currency` - The address of the currency to be used for the fee.
+    // * `treasury` - The address of the treasury.
+    fn set_config(
+        e: Env,
+        admin: Address,
+        registry: Address,
+        fee: i128,
+        currency: Address,
+        treasury: Address,
+    );
 
     // Upgrade the contract to a new version.
     //
@@ -60,7 +68,14 @@ pub struct ReverseRegistrar;
 
 #[contractimpl]
 impl ReverseRegistrarTrait for ReverseRegistrar {
-    fn set_config(e: Env, admin: Address, registry: Address) {
+    fn set_config(
+        e: Env,
+        admin: Address,
+        registry: Address,
+        fee: i128,
+        currency: Address,
+        treasury: Address,
+    ) {
         bump_instance(&e);
         if let Some(current_admin) = get_admin(&e) {
             current_admin.require_auth();
@@ -69,6 +84,13 @@ impl ReverseRegistrarTrait for ReverseRegistrar {
         e.storage()
             .instance()
             .set(&CoreDataKeys::Registry, &registry);
+        e.storage().instance().set(&CoreDataKeys::Fee, &fee);
+        e.storage()
+            .instance()
+            .set(&CoreDataKeys::Currency, &currency);
+        e.storage()
+            .instance()
+            .set(&CoreDataKeys::Treasury, &treasury);
     }
 
     fn upgrade(e: Env, hash: BytesN<32>) {
@@ -93,6 +115,7 @@ impl ReverseRegistrarTrait for ReverseRegistrar {
             // If setting a new domain
             (_, Some(new)) => {
                 validate_reverse_record(&e, &address, &new)?;
+                pay_fee(&e, &address)?;
                 e.storage().persistent().set(&address, &new);
                 emit_domain_updated(&e, address, Some(new));
                 Ok(())
@@ -174,12 +197,8 @@ fn fetch_domain_record(e: &Env, node: &BytesN<32>, sub_record: bool) -> Result<R
         return Err(Error::FailedToGetRecord);
     }
 
-    let record: Record = result
-        .unwrap()
-        .unwrap() // If conversion fails, it's a bug, so we panic.
-        .unwrap_or_else(|| panic_with_error!(&e, &Error::FailedToGetRecord));
-
-    Ok(record)
+    let record = result.unwrap().unwrap(); // If conversion fails, it's a bug, so we panic.
+    record.ok_or(Error::FailedToGetRecord)
 }
 
 fn bump_instance(e: &Env) {
@@ -196,4 +215,16 @@ fn bump_record(e: &Env, address: &Address) {
 
 fn get_admin(e: &Env) -> Option<Address> {
     e.storage().instance().get(&CoreDataKeys::Admin)
+}
+
+fn pay_fee(e: &Env, caller: &Address) -> Result<(), Error> {
+    let treasury: Address = e.storage().instance().get(&CoreDataKeys::Treasury).unwrap();
+    let currency: Address = e.storage().instance().get(&CoreDataKeys::Currency).unwrap();
+    let fee: i128 = e.storage().instance().get(&CoreDataKeys::Fee).unwrap();
+
+    let result = token::Client::new(&e, &currency).try_transfer(&caller, &treasury, &fee);
+    if result.is_err() {
+        return Err(Error::FailedToPayFee);
+    }
+    Ok(())
 }

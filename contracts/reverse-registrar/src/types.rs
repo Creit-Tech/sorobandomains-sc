@@ -21,4 +21,7 @@ pub struct Domain {
 pub enum CoreDataKeys {
     Admin,
     Registry,
+    Fee,
+    Currency,
+    Treasury,
 }

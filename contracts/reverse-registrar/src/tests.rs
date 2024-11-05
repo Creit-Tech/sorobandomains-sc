@@ -40,6 +40,11 @@ fn test_set_new_domain_with_domain() {
         .mock_all_auths()
         .mint(&owner, &i128::MAX);
 
+    global_test_data
+        .gov_asset_stellar
+        .mock_all_auths()
+        .mint(&domain_address, &i128::MAX);
+
     registry_test_data
         .contract_client
         .mock_all_auths()
@@ -93,6 +98,14 @@ fn test_set_new_domain_with_domain() {
             ),
         ]
     );
+
+    assert_eq!(
+        global_test_data
+            .gov_asset_client
+            .mock_all_auths()
+            .balance(&domain_address),
+        i128::MAX - reverse_registrar_test_data.fee
+    )
 }
 
 #[test]
@@ -126,6 +139,11 @@ fn test_set_new_domain_with_subdomain() {
     let sub_domain: Bytes = Bytes::from_slice(&e, "payments".as_bytes());
     let domain_node: BytesN<32> = generate_node(&e, &domain, &tld);
     let domain_address: Address = Address::generate(&e);
+
+    global_test_data
+        .gov_asset_stellar
+        .mock_all_auths()
+        .mint(&domain_address, &i128::MAX);
 
     registry_test_data.contract_client.mock_all_auths().set_sub(
         &sub_domain,
@@ -182,6 +200,14 @@ fn test_set_new_domain_with_subdomain() {
             ),
         ]
     );
+
+    assert_eq!(
+        global_test_data
+            .gov_asset_client
+            .mock_all_auths()
+            .balance(&domain_address),
+        i128::MAX - reverse_registrar_test_data.fee
+    )
 }
 
 #[test]
@@ -207,6 +233,11 @@ fn test_set_same_domain_should_only_bump() {
         .col_asset_stellar
         .mock_all_auths()
         .mint(&owner, &i128::MAX);
+
+    global_test_data
+        .gov_asset_stellar
+        .mock_all_auths()
+        .mint(&domain_address, &i128::MAX);
 
     registry_test_data
         .contract_client
@@ -259,6 +290,14 @@ fn test_set_same_domain_should_only_bump() {
             ),
         ]
     );
+
+    assert_eq!(
+        global_test_data
+            .gov_asset_client
+            .mock_all_auths()
+            .balance(&domain_address),
+        i128::MAX - reverse_registrar_test_data.fee
+    )
 }
 
 #[test]
@@ -285,6 +324,11 @@ fn test_set_new_domain_should_update() {
         .col_asset_stellar
         .mock_all_auths()
         .mint(&owner, &i128::MAX);
+
+    global_test_data
+        .gov_asset_stellar
+        .mock_all_auths()
+        .mint(&domain_address, &i128::MAX);
 
     registry_test_data
         .contract_client
@@ -352,6 +396,14 @@ fn test_set_new_domain_should_update() {
             ),
         ]
     );
+
+    assert_eq!(
+        global_test_data
+            .gov_asset_client
+            .mock_all_auths()
+            .balance(&domain_address),
+        i128::MAX - reverse_registrar_test_data.fee * 2
+    )
 }
 
 #[test]
@@ -377,6 +429,11 @@ fn test_remove_nonexistent_domain_should_do_nothing() {
         .col_asset_stellar
         .mock_all_auths()
         .mint(&owner, &i128::MAX);
+
+    global_test_data
+        .gov_asset_stellar
+        .mock_all_auths()
+        .mint(&domain_address, &i128::MAX);
 
     registry_test_data
         .contract_client
@@ -408,6 +465,14 @@ fn test_remove_nonexistent_domain_should_do_nothing() {
         }
     }
     assert!(filtered_events.is_empty());
+
+    assert_eq!(
+        global_test_data
+            .gov_asset_client
+            .mock_all_auths()
+            .balance(&domain_address),
+        i128::MAX
+    )
 }
 
 #[test]
@@ -651,5 +716,64 @@ fn test_failed_to_get_record_error_with_subdomain() {
             .unwrap_err()
             .unwrap(),
         Error::FailedToGetRecord.into()
+    )
+}
+
+#[test]
+fn test_failed_to_pay_fee_error() {
+    let e: Env = Env::default();
+    let global_test_data: GlobalTestData = create_global_test_data(&e);
+    let registry_test_data: registry::TestData = registry::create_test_data(&e);
+    let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
+    registry::init_contract(&global_test_data, &registry_test_data);
+    reverse_registrar::init_contract(
+        &global_test_data,
+        &registry_test_data,
+        &reverse_registrar_test_data,
+    );
+
+    let owner: Address = Address::generate(&e);
+    let domain_address: Address = Address::generate(&e);
+    let domain: Bytes = Bytes::from_slice(&e, "reversedemo".as_bytes());
+    let tld: Bytes = Bytes::from_slice(&e, "xlm".as_bytes());
+    let duration: u64 = registry_test_data.min_duration;
+
+    global_test_data
+        .col_asset_stellar
+        .mock_all_auths()
+        .mint(&owner, &i128::MAX);
+
+    global_test_data
+        .gov_asset_stellar
+        .mock_all_auths()
+        .mint(&domain_address, &(reverse_registrar_test_data.fee - 1));
+
+    registry_test_data
+        .contract_client
+        .mock_all_auths()
+        .set_record(&domain, &tld, &owner, &domain_address, &duration);
+
+    let domain = Domain {
+        tld,
+        sld: domain,
+        subs: Vec::new(&e),
+    };
+
+    assert_eq!(
+        reverse_registrar_test_data
+            .contract_client
+            .mock_all_auths()
+            .try_set(&domain_address, &Some(domain.clone()))
+            .unwrap_err()
+            .unwrap(),
+        Error::FailedToPayFee.into()
+    );
+
+    assert_eq!(
+        global_test_data
+            .gov_asset_client
+            .mock_all_auths()
+            .balance(&domain_address),
+        reverse_registrar_test_data.fee - 1
     )
 }

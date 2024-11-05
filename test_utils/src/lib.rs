@@ -196,13 +196,17 @@ pub mod reverse_registrar {
 
     pub struct TestData<'a> {
         pub contract_client: reverse_registrar_contract::Client<'a>,
+        pub fee: i128,
     }
 
     pub fn create_test_data<'a>(e: &Env) -> TestData<'a> {
         let contract_id: Address = e.register_contract_wasm(None, reverse_registrar_contract::WASM);
         let contract_client: reverse_registrar_contract::Client<'a> =
             reverse_registrar_contract::Client::new(&e, &contract_id);
-        TestData { contract_client }
+        TestData {
+            contract_client,
+            fee: 100_0000000,
+        }
     }
 
     pub fn init_contract(
@@ -213,6 +217,9 @@ pub mod reverse_registrar {
         test_data.contract_client.set_config(
             &global_test_data.adm,
             &registry_test_data.contract_client.address,
+            &test_data.fee,
+            &global_test_data.gov_asset,
+            &global_test_data.fee_taker,
         );
     }
 }
