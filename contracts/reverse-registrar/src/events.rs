@@ -5,7 +5,7 @@ use crate::types::Domain;
 #[contracttype]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
-enum EventTopics {
+pub enum EventTopics {
     DomainUpdated = 1,
 }
 

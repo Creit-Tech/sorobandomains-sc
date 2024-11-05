@@ -1,7 +1,10 @@
 #![cfg(test)]
 
 use common::utils::generate_node;
-use soroban_sdk::{testutils::Address as _, vec, Address, Bytes, BytesN, Env, Vec};
+use soroban_sdk::{
+    testutils::{Address as _, Events},
+    vec, Address, Bytes, BytesN, Env, IntoVal, Vec,
+};
 use test_utils::{
     create_global_test_data,
     registry::{self},
@@ -10,6 +13,8 @@ use test_utils::{
     reverse_registrar_contract::{Domain, Error},
     GlobalTestData,
 };
+
+use crate::events::EventTopics;
 
 #[test]
 fn test_set_new_domain_with_domain() {
@@ -54,9 +59,8 @@ fn test_set_new_domain_with_domain() {
         reverse_registrar_test_data
             .contract_client
             .get(&domain_address),
-        Some(domain)
+        Some(domain.clone())
     );
-
     reverse_registrar_test_data
         .contract_client
         .mock_all_auths()
@@ -67,6 +71,27 @@ fn test_set_new_domain_with_domain() {
             .contract_client
             .get(&domain_address),
         None
+    );
+
+    let mut filtered_events = soroban_sdk::Vec::new(&e);
+    for (contract_id, topics, data) in e.events().all().iter() {
+        if contract_id == reverse_registrar_test_data.contract_client.address {
+            filtered_events.push_back((topics.clone(), data.clone()));
+        }
+    }
+    assert_eq!(
+        filtered_events,
+        vec![
+            &e,
+            (
+                (EventTopics::DomainUpdated,).into_val(&e),
+                (domain_address.clone(), Some(domain.clone()),).into_val(&e)
+            ),
+            (
+                (EventTopics::DomainUpdated,).into_val(&e),
+                (domain_address.clone(), None::<Domain>,).into_val(&e)
+            ),
+        ]
     );
 }
 
@@ -123,7 +148,7 @@ fn test_set_new_domain_with_subdomain() {
         reverse_registrar_test_data
             .contract_client
             .get(&domain_address),
-        Some(domain)
+        Some(domain.clone())
     );
 
     reverse_registrar_test_data
@@ -136,6 +161,26 @@ fn test_set_new_domain_with_subdomain() {
             .contract_client
             .get(&domain_address),
         None
+    );
+    let mut filtered_events = soroban_sdk::Vec::new(&e);
+    for (contract_id, topics, data) in e.events().all().iter() {
+        if contract_id == reverse_registrar_test_data.contract_client.address {
+            filtered_events.push_back((topics.clone(), data.clone()));
+        }
+    }
+    assert_eq!(
+        filtered_events,
+        vec![
+            &e,
+            (
+                (EventTopics::DomainUpdated,).into_val(&e),
+                (domain_address.clone(), Some(domain.clone()),).into_val(&e)
+            ),
+            (
+                (EventTopics::DomainUpdated,).into_val(&e),
+                (domain_address.clone(), None::<Domain>,).into_val(&e)
+            ),
+        ]
     );
 }
 
@@ -197,6 +242,23 @@ fn test_set_same_domain_should_only_bump() {
             .get(&domain_address),
         Some(domain.clone())
     );
+
+    let mut filtered_events = soroban_sdk::Vec::new(&e);
+    for (contract_id, topics, data) in e.events().all().iter() {
+        if contract_id == reverse_registrar_test_data.contract_client.address {
+            filtered_events.push_back((topics.clone(), data.clone()));
+        }
+    }
+    assert_eq!(
+        filtered_events,
+        vec![
+            &e,
+            (
+                (EventTopics::DomainUpdated,).into_val(&e),
+                (domain_address.clone(), Some(domain.clone()),).into_val(&e)
+            ),
+        ]
+    );
 }
 
 #[test]
@@ -249,7 +311,7 @@ fn test_set_new_domain_should_update() {
         reverse_registrar_test_data
             .contract_client
             .get(&domain_address),
-        Some(domain1)
+        Some(domain1.clone())
     );
 
     let domain2 = Domain {
@@ -267,7 +329,28 @@ fn test_set_new_domain_should_update() {
         reverse_registrar_test_data
             .contract_client
             .get(&domain_address),
-        Some(domain2)
+        Some(domain2.clone())
+    );
+
+    let mut filtered_events = soroban_sdk::Vec::new(&e);
+    for (contract_id, topics, data) in e.events().all().iter() {
+        if contract_id == reverse_registrar_test_data.contract_client.address {
+            filtered_events.push_back((topics.clone(), data.clone()));
+        }
+    }
+    assert_eq!(
+        filtered_events,
+        vec![
+            &e,
+            (
+                (EventTopics::DomainUpdated,).into_val(&e),
+                (domain_address.clone(), Some(domain1.clone()),).into_val(&e)
+            ),
+            (
+                (EventTopics::DomainUpdated,).into_val(&e),
+                (domain_address.clone(), Some(domain2.clone()),).into_val(&e)
+            ),
+        ]
     );
 }
 
@@ -317,6 +400,14 @@ fn test_remove_nonexistent_domain_should_do_nothing() {
             .get(&domain_address),
         None
     );
+
+    let mut filtered_events = soroban_sdk::Vec::new(&e);
+    for (contract_id, topics, data) in e.events().all().iter() {
+        if contract_id == reverse_registrar_test_data.contract_client.address {
+            filtered_events.push_back((topics.clone(), data.clone()));
+        }
+    }
+    assert!(filtered_events.is_empty());
 }
 
 #[test]
