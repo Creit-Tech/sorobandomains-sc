@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### 0.4.0 (2025-03-24)
+
+#### Change
+
+- Update the `registry` contract so it's ready to use reflector's oracles.
+
 ### 0.3.0 (2024-04-06)
 
 #### Add

@@ -6,13 +6,14 @@ use crate::tests::test_utils::{create_test_data, init_contract, TestData};
 use crate::utils::records::generate_node;
 use soroban_sdk::testutils::{Address as _, MockAuth, MockAuthInvoke};
 use soroban_sdk::{Address, Bytes, BytesN, Env, IntoVal};
+use test_utils::create_env;
 
 #[test]
 fn test_setting_record() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     e.mock_all_auths();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let new_owner: Address = Address::generate(&e);
     let new_address_target: Address = Address::generate(&e);
@@ -50,7 +51,7 @@ fn test_setting_record() {
             owner: new_owner.clone(),
             address: new_address_target.clone(),
             exp_date: e.ledger().timestamp() + duration,
-            collateral: test_data.node_rate * (duration as u128),
+            collateral: 68_4956840u128,
             snapshot: e.ledger().timestamp(),
         })
     );
@@ -78,7 +79,7 @@ fn test_unsupported_tld() {
     let e: Env = Env::default();
     e.mock_all_auths();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let new_owner: Address = Address::generate(&e);
     let new_domain: Bytes = Bytes::from_slice(&e, "stellar".as_bytes());
@@ -99,7 +100,7 @@ fn test_invalid_duration() {
     let e: Env = Env::default();
     e.mock_all_auths();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let new_owner: Address = Address::generate(&e);
     let new_domain: Bytes = Bytes::from_slice(&e, "stellar".as_bytes());
@@ -120,7 +121,7 @@ fn test_invalid_domain() {
     let e: Env = Env::default();
     e.mock_all_auths();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let new_owner: Address = Address::generate(&e);
     let tld: Bytes = Bytes::from_slice(&e, "xlm".as_bytes());
@@ -185,9 +186,9 @@ fn test_multiplier() {
 
 #[test]
 fn test_subdomains() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let owner: Address = Address::generate(&e);
     let domain_address: Address = Address::generate(&e);
@@ -297,9 +298,9 @@ fn test_subdomains() {
 
 #[test]
 fn test_updating_address() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let owner: Address = Address::generate(&e);
     let address: Address = Address::generate(&e);

@@ -1,4 +1,4 @@
-use soroban_sdk::testutils::Address as _;
+use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{token, Address, Env};
 
 pub fn create_token_contract<'a>(
@@ -16,6 +16,13 @@ pub mod registry_contract {
     soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/registry.wasm");
 }
 
+pub fn create_env() -> Env {
+    let e: Env = Env::from_ledger_snapshot_file("../../network_snapshots/reflector.json");
+    e.ledger().set_protocol_version(21);
+    e.ledger().set_timestamp(1742825701);
+    e
+}
+
 pub struct GlobalTestData<'a> {
     pub col_asset: Address,
     pub col_asset_adm: Address,
@@ -26,6 +33,8 @@ pub struct GlobalTestData<'a> {
     pub gov_asset_adm: Address,
     pub gov_asset_client: token::Client<'a>,
     pub gov_asset_stellar: token::StellarAssetClient<'a>,
+
+    pub oracle_addr: Address,
 
     pub adm: Address,
     pub fee_taker: Address,
@@ -39,6 +48,11 @@ pub fn create_global_test_data<'a>(e: &Env) -> GlobalTestData<'a> {
     let (gov_asset_client, gov_asset_stellar) = create_token_contract(&e, &gov_asset_adm);
     let fee_taker: Address = Address::generate(&e);
 
+    let oracle_addr: Address = Address::from_string(&soroban_sdk::String::from_str(
+        e,
+        "CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN",
+    ));
+
     GlobalTestData {
         col_asset: col_asset_client.address.clone(),
         col_asset_adm,
@@ -49,6 +63,8 @@ pub fn create_global_test_data<'a>(e: &Env) -> GlobalTestData<'a> {
         gov_asset_adm,
         gov_asset_client,
         gov_asset_stellar,
+
+        oracle_addr,
 
         adm,
         fee_taker,
@@ -130,6 +146,11 @@ pub mod registry {
             .contract_client
             .mock_all_auths()
             .set_offers_config(&global_test_data.fee_taker, &test_data.offer_fee);
+
+        test_data
+            .contract_client
+            .mock_all_auths()
+            .set_oracle(&global_test_data.oracle_addr);
     }
 }
 

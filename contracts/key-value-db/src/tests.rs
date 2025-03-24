@@ -1,11 +1,11 @@
 #![cfg(test)]
 
 use soroban_sdk::Env;
-use test_utils::{create_global_test_data, key_value_db, registry, GlobalTestData};
+use test_utils::{create_env, create_global_test_data, key_value_db, registry, GlobalTestData};
 
 #[test]
 fn test_keys() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
 
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);

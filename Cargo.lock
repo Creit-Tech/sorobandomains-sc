@@ -829,10 +829,11 @@ dependencies = [
 
 [[package]]
 name = "registry"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "num-integer",
  "soroban-sdk",
+ "test_utils",
 ]
 
 [[package]]

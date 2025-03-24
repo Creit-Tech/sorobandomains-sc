@@ -6,7 +6,7 @@ use soroban_sdk::{
     vec, Address, Bytes, BytesN, Env, IntoVal, Vec,
 };
 use test_utils::{
-    create_global_test_data,
+    create_env, create_global_test_data,
     registry::{self},
     registry_contract::RecordKeys,
     reverse_registrar,
@@ -18,7 +18,7 @@ use crate::events::EventTopics;
 
 #[test]
 fn test_set_new_domain_with_domain() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -110,7 +110,8 @@ fn test_set_new_domain_with_domain() {
 
 #[test]
 fn test_set_new_domain_with_subdomain() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
+    e.budget().reset_unlimited();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -212,7 +213,8 @@ fn test_set_new_domain_with_subdomain() {
 
 #[test]
 fn test_set_same_domain_should_only_bump() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
+    e.budget().reset_unlimited();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -302,7 +304,8 @@ fn test_set_same_domain_should_only_bump() {
 
 #[test]
 fn test_set_new_domain_should_update() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
+    e.budget().reset_unlimited();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -408,7 +411,7 @@ fn test_set_new_domain_should_update() {
 
 #[test]
 fn test_remove_nonexistent_domain_should_do_nothing() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -477,7 +480,7 @@ fn test_remove_nonexistent_domain_should_do_nothing() {
 
 #[test]
 fn test_address_missmatch_error_with_domain() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -523,7 +526,7 @@ fn test_address_missmatch_error_with_domain() {
 
 #[test]
 fn test_address_missmatch_error_with_subdomain() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -578,7 +581,7 @@ fn test_address_missmatch_error_with_subdomain() {
 
 #[test]
 fn test_not_implemented_error() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -637,7 +640,7 @@ fn test_not_implemented_error() {
 
 #[test]
 fn test_failed_to_get_record_with_domain() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -676,7 +679,7 @@ fn test_failed_to_get_record_with_domain() {
 
 #[test]
 fn test_failed_to_get_record_error_with_subdomain() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);
@@ -721,7 +724,7 @@ fn test_failed_to_get_record_error_with_subdomain() {
 
 #[test]
 fn test_failed_to_pay_fee_error() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let global_test_data: GlobalTestData = create_global_test_data(&e);
     let registry_test_data: registry::TestData = registry::create_test_data(&e);
     let reverse_registrar_test_data = reverse_registrar::create_test_data(&e);

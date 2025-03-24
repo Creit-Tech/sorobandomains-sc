@@ -9,7 +9,7 @@ use soroban_sdk::{Bytes, Env, IntoVal, Vec};
 pub fn test_updating_tlds() {
     let e: Env = Env::default();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let core: CoreData = e.as_contract(&test_data.contract_client.address, || {
         e.core_data().unwrap()

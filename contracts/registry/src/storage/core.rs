@@ -5,6 +5,7 @@ pub struct CoreData {
     // Admin can upgrade the contract and liquidate nodes
     pub adm: Address,
 
+    // @deprecated - We don't use this anymore
     // The node rate is the amount of collateral the creator needs to put as collateral in terms of seconds
     // For example a node rate can be as low as 1 unit of collateral (ex: 0.0000001 XLM)
     pub node_rate: u128,
@@ -28,12 +29,15 @@ pub struct OffersConfig {
 pub enum CoreDataKeys {
     CoreData,
     OffersConfig,
+    Oracle,
 }
 
 pub trait CoreDataEntity {
     fn bump_core(&self);
     fn set_core_data(&self, core_data: &CoreData);
     fn core_data(&self) -> Option<CoreData>;
+    fn set_oracle(&self, oracle: &Address);
+    fn oracle(&self) -> Address;
     fn set_offers_config(&self, v: &OffersConfig);
     fn offers_config(&self) -> Option<OffersConfig>;
     fn is_adm(&self);
@@ -53,6 +57,17 @@ impl CoreDataEntity for Env {
 
     fn core_data(&self) -> Option<CoreData> {
         self.storage().instance().get(&CoreDataKeys::CoreData)
+    }
+
+    fn set_oracle(&self, oracle: &Address) {
+        self.storage().instance().set(&CoreDataKeys::Oracle, oracle);
+    }
+
+    fn oracle(&self) -> Address {
+        self.storage()
+            .instance()
+            .get(&CoreDataKeys::Oracle)
+            .unwrap()
     }
 
     fn set_offers_config(&self, v: &OffersConfig) {

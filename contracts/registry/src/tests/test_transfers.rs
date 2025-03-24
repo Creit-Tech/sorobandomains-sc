@@ -2,14 +2,15 @@
 
 use crate::storage::record::{Domain, Record, RecordKeys};
 use crate::tests::test_utils::{create_test_data, init_contract, TestData};
-use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo, MockAuth, MockAuthInvoke};
+use soroban_sdk::testutils::{Address as _, Ledger, MockAuth, MockAuthInvoke};
 use soroban_sdk::{Address, Bytes, BytesN, Env, IntoVal};
+use test_utils::create_env;
 
 #[test]
 fn test_simple_transfer() {
-    let e: Env = Env::default();
+    let e: Env = create_env();
     let test_data: TestData = create_test_data(&e);
-    init_contract(&test_data);
+    init_contract(&e, &test_data);
 
     let first_owner: Address = Address::generate(&e);
     let second_owner: Address = Address::generate(&e);
@@ -41,16 +42,7 @@ fn test_simple_transfer() {
         Record::SubDomain(_) => panic!(),
     };
 
-    e.ledger().set(LedgerInfo {
-        timestamp: 10,
-        protocol_version: 20,
-        sequence_number: e.ledger().sequence(),
-        network_id: Default::default(),
-        base_reserve: 10,
-        min_temp_entry_ttl: 1,
-        min_persistent_entry_ttl: 1,
-        max_entry_ttl: u32::MAX,
-    });
+    e.ledger().set_timestamp(1742825701 + 10);
 
     test_data
         .contract_client
@@ -75,9 +67,9 @@ fn test_simple_transfer() {
     };
 
     assert_eq!(first_owner, first_record.owner);
-    assert_eq!(0, first_record.snapshot);
+    assert_eq!(1742825701, first_record.snapshot);
     assert_eq!(second_owner, second_record.owner);
-    assert_eq!(10, second_record.snapshot);
+    assert_eq!(1742825701 + 10, second_record.snapshot);
 
     // It should fail because first owner is no the owner anymore
     assert!(test_data

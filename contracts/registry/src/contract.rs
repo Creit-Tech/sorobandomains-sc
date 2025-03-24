@@ -4,7 +4,7 @@ use crate::storage::core::{CoreData, CoreDataEntity, OffersConfig};
 use crate::storage::offers::{Offer, OffersDataKeys, OffersFunc};
 use crate::storage::record::{Domain, Record, RecordEntity, RecordKeys, SubDomain};
 use crate::utils::offers::{set_new_buy_offer, set_sale_offer, update_buy_offer};
-use crate::utils::records::{generate_node, validate_domain};
+use crate::utils::records::{generate_node, record_price, validate_domain};
 use num_integer::div_ceil;
 use soroban_sdk::{
     contract, contractimpl, panic_with_error, token, Address, Bytes, BytesN, Env, Vec,
@@ -21,7 +21,7 @@ pub trait RegistryContractTrait {
     );
 
     fn set_offers_config(e: Env, fee_taker: Address, fee: u128);
-
+    fn set_oracle(e: Env, oracle: Address);
     fn upgrade(e: Env, new_wasm_hash: BytesN<32>);
     fn update_tlds(e: Env, tlds: Vec<Bytes>);
 
@@ -99,6 +99,12 @@ impl RegistryContractTrait for RegistryContract {
         e.set_offers_config(&OffersConfig { fee_taker, fee });
     }
 
+    fn set_oracle(e: Env, oracle: Address) {
+        e.bump_core();
+        e.is_adm();
+        e.set_oracle(&oracle);
+    }
+
     fn upgrade(e: Env, hash: BytesN<32>) {
         e.bump_core();
         e.is_adm();
@@ -145,13 +151,7 @@ impl RegistryContractTrait for RegistryContract {
         }
 
         let exp_date: u64 = e.ledger().timestamp() + duration;
-        let multiplier: u32 = if domain.len() > 4 {
-            1
-        } else {
-            (5 - domain.len()) * 3
-        };
-
-        let collateral: u128 = core_data.node_rate * (duration as u128) * (multiplier as u128);
+        let (_, collateral) = record_price(&e, &e.oracle(), domain.len());
 
         token::Client::new(&e, &core_data.col_asset).transfer(
             &owner,

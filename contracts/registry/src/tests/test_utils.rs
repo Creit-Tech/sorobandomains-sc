@@ -2,7 +2,7 @@
 
 use crate::contract::{RegistryContract, RegistryContractClient};
 use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{token, Address, Bytes, Env, Vec};
+use soroban_sdk::{token, Address, Bytes, Env, String, Vec};
 
 fn create_token_contract<'a>(
     e: &Env,
@@ -69,7 +69,7 @@ pub fn create_test_data<'a>(e: &Env) -> TestData<'a> {
     }
 }
 
-pub fn init_contract(test_data: &TestData) {
+pub fn init_contract(e: &Env, test_data: &TestData) {
     test_data.contract_client.init(
         &test_data.adm,
         &test_data.node_rate,
@@ -82,4 +82,13 @@ pub fn init_contract(test_data: &TestData) {
         .contract_client
         .mock_all_auths()
         .set_offers_config(&test_data.fee_taker, &test_data.offer_fee);
+
+    let oracle_addr: Address = Address::from_string(&String::from_str(
+        e,
+        "CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN",
+    ));
+    test_data
+        .contract_client
+        .mock_all_auths()
+        .set_oracle(&oracle_addr);
 }
