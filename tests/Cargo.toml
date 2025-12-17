@@ -1,0 +1,12 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+soroban-sdk = { workspace = true }
+common = { path = "../common" }
+
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

@@ -78,11 +78,9 @@ impl RecordEntity for Env {
     }
 
     fn bump_record(&self, record_type: &RecordKeys) {
-        self.storage().persistent().extend_ttl(
-            record_type,
-            17280,
-            self.ledger().sequence() + (17280 * 30),
-        );
+        self.storage()
+            .persistent()
+            .extend_ttl(record_type, 17280, self.ledger().sequence() + (17280 * 30));
     }
 
     fn burn_record(&self, record_type: &RecordKeys) {

@@ -53,10 +53,7 @@ pub fn record_price(e: &Env, oracle_addr: &Address, length: u32) -> (u128, u128)
 
     let oracle_client: oracle::Client = oracle::Client::new(&e, oracle_addr);
     let decimals: u32 = oracle_client.decimals();
-    let rate_price: u128 = oracle_client
-        .lastprice(&oracle::Asset::Other(symbol_short!("XLM")))
-        .unwrap()
-        .price as u128;
+    let rate_price: u128 = oracle_client.lastprice(&oracle::Asset::Other(symbol_short!("XLM"))).unwrap().price as u128;
 
     let collateral_price: u128 = if decimals > 7 {
         rate_price / 10u128.pow(decimals - 7)
@@ -84,10 +81,7 @@ mod test_records_utils {
         let e: Env = Env::from_ledger_snapshot_file("../../network_snapshots/reflector.json");
         e.ledger().set_protocol_version(21);
         e.ledger().set_timestamp(1742825701);
-        let oracle_addr: Address = Address::from_string(&String::from_str(
-            &e,
-            "CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN",
-        ));
+        let oracle_addr: Address = Address::from_string(&String::from_str(&e, "CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN"));
 
         let oracle_client: oracle::Client = oracle::Client::new(&e, &oracle_addr);
 

@@ -7,7 +7,5 @@ mod tests;
 mod types;
 
 mod registry {
-    soroban_sdk::contractimport!(
-        file = "../../target/wasm32-unknown-unknown/release/registry.wasm"
-    );
+    soroban_sdk::contractimport!(file = "../../target/wasm32v1-none/release/registry.wasm");
 }

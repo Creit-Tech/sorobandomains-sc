@@ -6,33 +6,17 @@ use crate::storage::record::{Domain, Record, RecordEntity, RecordKeys, SubDomain
 use crate::utils::offers::{set_new_buy_offer, set_sale_offer, update_buy_offer};
 use crate::utils::records::{generate_node, record_price, validate_domain};
 use num_integer::div_ceil;
-use soroban_sdk::{
-    contract, contractimpl, panic_with_error, token, Address, Bytes, BytesN, Env, Vec,
-};
+use soroban_sdk::{contract, contractimpl, panic_with_error, token, Address, Bytes, BytesN, Env, Vec};
 
 pub trait RegistryContractTrait {
-    fn init(
-        e: Env,
-        adm: Address,
-        node_rate: u128,
-        col_asset: Address,
-        min_duration: u64,
-        allowed_tlds: Vec<Bytes>,
-    );
+    fn init(e: Env, adm: Address, node_rate: u128, col_asset: Address, min_duration: u64, allowed_tlds: Vec<Bytes>);
 
     fn set_offers_config(e: Env, fee_taker: Address, fee: u128);
     fn set_oracle(e: Env, oracle: Address);
     fn upgrade(e: Env, new_wasm_hash: BytesN<32>);
     fn update_tlds(e: Env, tlds: Vec<Bytes>);
 
-    fn set_record(
-        e: Env,
-        domain: Bytes,
-        tld: Bytes,
-        owner: Address,
-        address: Address,
-        duration: u64,
-    );
+    fn set_record(e: Env, domain: Bytes, tld: Bytes, owner: Address, address: Address, duration: u64);
 
     fn update_address(e: Env, key: RecordKeys, address: Address);
 
@@ -71,14 +55,7 @@ pub struct RegistryContract;
 
 #[contractimpl]
 impl RegistryContractTrait for RegistryContract {
-    fn init(
-        e: Env,
-        adm: Address,
-        node_rate: u128,
-        col_asset: Address,
-        min_duration: u64,
-        allowed_tlds: Vec<Bytes>,
-    ) {
+    fn init(e: Env, adm: Address, node_rate: u128, col_asset: Address, min_duration: u64, allowed_tlds: Vec<Bytes>) {
         if let Some(_) = e.core_data() {
             panic_with_error!(&e, &ContractErrors::AlreadyStarted);
         } else {
@@ -119,14 +96,7 @@ impl RegistryContractTrait for RegistryContract {
         e.set_core_data(&core);
     }
 
-    fn set_record(
-        e: Env,
-        domain: Bytes,
-        tld: Bytes,
-        owner: Address,
-        address: Address,
-        duration: u64,
-    ) {
+    fn set_record(e: Env, domain: Bytes, tld: Bytes, owner: Address, address: Address, duration: u64) {
         e.bump_core();
         owner.require_auth();
 
@@ -153,11 +123,7 @@ impl RegistryContractTrait for RegistryContract {
         let exp_date: u64 = e.ledger().timestamp() + duration;
         let (_, collateral) = record_price(&e, &e.oracle(), domain.len());
 
-        token::Client::new(&e, &core_data.col_asset).transfer(
-            &owner,
-            &e.current_contract_address(),
-            &(collateral as i128),
-        );
+        token::Client::new(&e, &core_data.col_asset).transfer(&owner, &e.current_contract_address(), &(collateral as i128));
 
         e.set_record(&Record::Domain(Domain {
             node: node_hash,
@@ -206,8 +172,7 @@ impl RegistryContractTrait for RegistryContract {
                 panic_with_error!(&e, &ContractErrors::ExpiredDomain);
             }
 
-            let node_hash: BytesN<32> =
-                generate_node(&e, &sub, &(Bytes::from(domain.node.clone())));
+            let node_hash: BytesN<32> = generate_node(&e, &sub, &(Bytes::from(domain.node.clone())));
             let record_key: RecordKeys = RecordKeys::SubRecord(node_hash.clone());
 
             e.set_record(&Record::SubDomain(SubDomain {
@@ -241,9 +206,7 @@ impl RegistryContractTrait for RegistryContract {
                 Some(Record::Domain(domain))
             }
             Record::SubDomain(sub) => {
-                if let Record::Domain(domain) =
-                    e.record(&RecordKeys::Record(sub.parent.clone())).unwrap()
-                {
+                if let Record::Domain(domain) = e.record(&RecordKeys::Record(sub.parent.clone())).unwrap() {
                     if domain.exp_date < e.ledger().timestamp() {
                         panic_with_error!(&e, &ContractErrors::ExpiredDomain);
                     }
@@ -302,9 +265,7 @@ impl RegistryContractTrait for RegistryContract {
                 );
             }
             Record::SubDomain(sub) => {
-                if let Record::Domain(domain) =
-                    e.record(&RecordKeys::Record(sub.parent.clone())).unwrap()
-                {
+                if let Record::Domain(domain) = e.record(&RecordKeys::Record(sub.parent.clone())).unwrap() {
                     domain.owner.require_auth();
                 } else {
                     panic_with_error!(&e, &ContractErrors::InvalidParent);
@@ -361,14 +322,7 @@ impl RegistryContractTrait for RegistryContract {
                         panic_with_error!(&e, &ContractErrors::UnexpectedError);
                     }
 
-                    update_buy_offer(
-                        &e,
-                        &e.core_data().unwrap(),
-                        &caller,
-                        &old_buy_offer,
-                        &domain,
-                        &amount,
-                    );
+                    update_buy_offer(&e, &e.core_data().unwrap(), &caller, &old_buy_offer, &domain, &amount);
                 }
                 Offer::SaleOffer(_) => {
                     set_sale_offer(&e, &domain, &amount);
@@ -422,13 +376,7 @@ impl RegistryContractTrait for RegistryContract {
                     &(fee as i128),
                 );
 
-                emit_offer_accepted(
-                    &e,
-                    &buy_offer.buyer,
-                    &domain.owner,
-                    &domain.node,
-                    &buy_offer.amount,
-                );
+                emit_offer_accepted(&e, &buy_offer.buyer, &domain.owner, &domain.node, &buy_offer.amount);
 
                 domain.owner = buy_offer.buyer.clone();
                 domain.address = buy_offer.buyer;
@@ -444,17 +392,9 @@ impl RegistryContractTrait for RegistryContract {
                 let profit: u128 = sale_offer.amount - domain.collateral;
                 let fee: u128 = div_ceil(profit * offers_config.fee, 100_0000000);
 
-                token::Client::new(&e, &core_data.col_asset).transfer(
-                    &caller,
-                    &domain.owner,
-                    &((sale_offer.amount - fee) as i128),
-                );
+                token::Client::new(&e, &core_data.col_asset).transfer(&caller, &domain.owner, &((sale_offer.amount - fee) as i128));
 
-                token::Client::new(&e, &core_data.col_asset).transfer(
-                    &caller,
-                    &offers_config.fee_taker,
-                    &(fee as i128),
-                );
+                token::Client::new(&e, &core_data.col_asset).transfer(&caller, &offers_config.fee_taker, &(fee as i128));
 
                 emit_offer_accepted(&e, &caller, &domain.owner, &domain.node, &sale_offer.amount);
 
@@ -462,8 +402,7 @@ impl RegistryContractTrait for RegistryContract {
                 domain.address = caller;
                 domain.snapshot = e.ledger().timestamp();
                 e.set_record(&Record::Domain(domain));
-                e._offers()
-                    .burn(&OffersDataKeys::SaleOffer(sale_offer.node));
+                e._offers().burn(&OffersDataKeys::SaleOffer(sale_offer.node));
             }
         }
 
@@ -489,11 +428,9 @@ impl RegistryContractTrait for RegistryContract {
                 e._offers().burn(&key);
             }
             Offer::SaleOffer(sale_offer) => {
-                let domain: Record = e
-                    .record(&RecordKeys::Record(sale_offer.node))
-                    .unwrap_or_else(|| {
-                        panic_with_error!(&e, &ContractErrors::RecordDoesntExist);
-                    });
+                let domain: Record = e.record(&RecordKeys::Record(sale_offer.node)).unwrap_or_else(|| {
+                    panic_with_error!(&e, &ContractErrors::RecordDoesntExist);
+                });
 
                 match domain {
                     Record::Domain(domain) => {
