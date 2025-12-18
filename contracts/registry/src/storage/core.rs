@@ -49,9 +49,7 @@ impl CoreDataEntity for Env {
     }
 
     fn set_core_data(&self, core_data: &CoreData) {
-        self.storage()
-            .instance()
-            .set(&CoreDataKeys::CoreData, core_data);
+        self.storage().instance().set(&CoreDataKeys::CoreData, core_data);
         self.bump_core();
     }
 
@@ -64,16 +62,11 @@ impl CoreDataEntity for Env {
     }
 
     fn oracle(&self) -> Address {
-        self.storage()
-            .instance()
-            .get(&CoreDataKeys::Oracle)
-            .unwrap()
+        self.storage().instance().get(&CoreDataKeys::Oracle).unwrap()
     }
 
     fn set_offers_config(&self, v: &OffersConfig) {
-        self.storage()
-            .instance()
-            .set(&CoreDataKeys::OffersConfig, v);
+        self.storage().instance().set(&CoreDataKeys::OffersConfig, v);
     }
 
     fn offers_config(&self) -> Option<OffersConfig> {

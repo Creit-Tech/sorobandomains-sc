@@ -1,11 +1,10 @@
 [workspace]
 resolver = "2"
 
-members = ["contracts/*", "test_utils", "common"]
+members = ["test_utils", "common", "contracts/*", "tests"]
 
-[profile.release-with-logs]
-inherits = "release"
-debug-assertions = true
+[workspace.dependencies]
+soroban-sdk = "23.3.0"
 
 [profile.release]
 opt-level = "z"
@@ -17,5 +16,6 @@ panic = "abort"
 codegen-units = 1
 lto = true
 
-[workspace.dependencies.soroban-sdk]
-version = "21.1.1"
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true

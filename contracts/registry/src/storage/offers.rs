@@ -84,11 +84,10 @@ impl Offers {
         }
     }
     pub fn bump(&self, key: &OffersDataKeys) {
-        self.env.storage().persistent().extend_ttl(
-            key,
-            17280,
-            self.env.ledger().sequence() + (17280 * 30),
-        )
+        self.env
+            .storage()
+            .persistent()
+            .extend_ttl(key, 17280, self.env.ledger().sequence() + (17280 * 30))
     }
     pub fn burn(&self, key: &OffersDataKeys) {
         self.env.storage().persistent().remove(key);

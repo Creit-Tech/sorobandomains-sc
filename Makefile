@@ -1,10 +1,14 @@
 build:
-	stellar contract build --package registry
-	stellar contract optimize --wasm ./target/wasm32-unknown-unknown/release/registry.wasm
-	stellar contract build --package key-value-db
-	stellar contract optimize --wasm ./target/wasm32-unknown-unknown/release/key_value_db.wasm
-	stellar contract build --package reverse-registrar
-	stellar contract optimize --wasm ./target/wasm32-unknown-unknown/release/reverse_registrar.wasm
+	stellar contract build --package registry --optimize
+	stellar contract build --package key-value-db --optimize
+	stellar contract build --package reverse-registrar --optimize
+	stellar contract build --package non-fungible-domain --optimize
+	stellar contract build --package registry-v2 --optimize
+
+build_v2:
+	stellar contract build --package registry --optimize
+	stellar contract build --package non-fungible-domain --optimize
+	stellar contract build --package registry-v2 --optimize
 
 test:
 	make build

@@ -1,8 +1,31 @@
 use soroban_sdk::{Bytes, BytesN, Env};
 
-// This function is used to generate the nodes based on the "domain" and the "parent".
-// The parent can be either the root domain (in the case of generating a subdomain node) or the TLD (when generating a root
-// domain node).
+/// Currently there are forbidden types of domains:
+/// - Domains with numbers
+/// - Domains with special characters
+/// - Domains with uppercase letters
+/// - Domains that are longer than 15 characters
+///
+/// Errors:
+/// * 0 = Invalid length of the domain
+/// * 1 = Invalid characters used in the domain
+pub fn validate_domain(domain: &Bytes) -> Result<(), u32> {
+    if domain.len() > 15 {
+        return Err(0);
+    }
+
+    for byte in domain.iter() {
+        if byte < 97 || byte > 122 {
+            return Err(1);
+        }
+    }
+
+    Ok(())
+}
+
+/// This function is used to generate the nodes based on the "domain" and the "parent".
+/// The parent can be either the root domain (in the case of generating a subdomain node) or the TLD (when generating a root
+/// domain node).
 pub fn generate_node(e: &Env, domain: &Bytes, parent: &Bytes) -> BytesN<32> {
     let parent_hash: BytesN<32> = e.crypto().keccak256(&parent).to_bytes();
     let domain_hash: BytesN<32> = e.crypto().keccak256(&domain).to_bytes();

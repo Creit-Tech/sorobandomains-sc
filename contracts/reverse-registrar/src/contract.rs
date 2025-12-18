@@ -20,14 +20,7 @@ pub trait ReverseRegistrarTrait {
     // * `fee` - The fee to be paid for adding or updating a reverse domain.
     // * `currency` - The address of the currency to be used for the fee.
     // * `treasury` - The address of the treasury.
-    fn set_config(
-        e: Env,
-        admin: Address,
-        registry: Address,
-        fee: i128,
-        currency: Address,
-        treasury: Address,
-    );
+    fn set_config(e: Env, admin: Address, registry: Address, fee: i128, currency: Address, treasury: Address);
 
     // Upgrade the contract to a new version.
     //
@@ -68,29 +61,16 @@ pub struct ReverseRegistrar;
 
 #[contractimpl]
 impl ReverseRegistrarTrait for ReverseRegistrar {
-    fn set_config(
-        e: Env,
-        admin: Address,
-        registry: Address,
-        fee: i128,
-        currency: Address,
-        treasury: Address,
-    ) {
+    fn set_config(e: Env, admin: Address, registry: Address, fee: i128, currency: Address, treasury: Address) {
         bump_instance(&e);
         if let Some(current_admin) = get_admin(&e) {
             current_admin.require_auth();
         }
         e.storage().instance().set(&CoreDataKeys::Admin, &admin);
-        e.storage()
-            .instance()
-            .set(&CoreDataKeys::Registry, &registry);
+        e.storage().instance().set(&CoreDataKeys::Registry, &registry);
         e.storage().instance().set(&CoreDataKeys::Fee, &fee);
-        e.storage()
-            .instance()
-            .set(&CoreDataKeys::Currency, &currency);
-        e.storage()
-            .instance()
-            .set(&CoreDataKeys::Treasury, &treasury);
+        e.storage().instance().set(&CoreDataKeys::Currency, &currency);
+        e.storage().instance().set(&CoreDataKeys::Treasury, &treasury);
     }
 
     fn upgrade(e: Env, hash: BytesN<32>) {
@@ -163,11 +143,7 @@ fn validate_reverse_record(e: &Env, address: &Address, domain: &Domain) -> Resul
         return Err(Error::NotImplemented);
     }
 
-    domain_node = generate_node(
-        &e,
-        &domain.subs.first().unwrap(),
-        &domain_node.try_into().unwrap(),
-    );
+    domain_node = generate_node(&e, &domain.subs.first().unwrap(), &domain_node.try_into().unwrap());
     let Record::SubDomain(subdomain) = fetch_domain_record(&e, &domain_node, true)? else {
         panic!("unreachable");
     };
@@ -187,11 +163,7 @@ fn fetch_domain_record(e: &Env, node: &BytesN<32>, sub_record: bool) -> Result<R
         RecordKeys::Record(node.clone())
     };
 
-    let result = e.try_invoke_contract::<Option<Record>, RegistryErrors>(
-        &registry,
-        &symbol_short!("record"),
-        (key,).into_val(e),
-    );
+    let result = e.try_invoke_contract::<Option<Record>, RegistryErrors>(&registry, &symbol_short!("record"), (key,).into_val(e));
 
     if result.is_err() {
         return Err(Error::FailedToGetRecord);
@@ -202,15 +174,11 @@ fn fetch_domain_record(e: &Env, node: &BytesN<32>, sub_record: bool) -> Result<R
 }
 
 fn bump_instance(e: &Env) {
-    e.storage()
-        .instance()
-        .extend_ttl(LEDGER_DAY * 30, LEDGER_DAY * 60);
+    e.storage().instance().extend_ttl(LEDGER_DAY * 30, LEDGER_DAY * 60);
 }
 
 fn bump_record(e: &Env, address: &Address) {
-    e.storage()
-        .persistent()
-        .extend_ttl(address, LEDGER_DAY * 30, LEDGER_DAY * 60);
+    e.storage().persistent().extend_ttl(address, LEDGER_DAY * 30, LEDGER_DAY * 60);
 }
 
 fn get_admin(e: &Env) -> Option<Address> {
