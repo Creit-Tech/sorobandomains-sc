@@ -12,6 +12,7 @@ pub enum RegistryStorageKeys {
     NFD, // -> Address (The address of the "Non-Fungible Token" contract)
     Domain(BytesN<32>),
     SubDomain(BytesN<32>),
+    Treasury, // -> Address (this is the address to which the admin can send the funds to, at some point this will be the DAO contract)
 
     V1Registry,
     V1MaxSnapshot, // -> The max timestamp at which a v1 domain has been updated to be accepted for migration
@@ -96,6 +97,10 @@ pub fn tlds(e: &Env, value: Option<Vec<Bytes>>) -> Option<Vec<Bytes>> {
 
 pub fn nfd(e: &Env, value: Option<Address>) -> Option<Address> {
     instance_consumer(&e, &RegistryStorageKeys::NFD, value)
+}
+
+pub fn treasury(e: &Env, value: Option<Address>) -> Option<Address> {
+    instance_consumer(&e, &RegistryStorageKeys::Treasury, value)
 }
 
 pub fn v1_records(e: &Env, registry: Option<Address>, max_snapshot: Option<u64>, deadline: Option<u64>) -> (Address, u64, u64) {

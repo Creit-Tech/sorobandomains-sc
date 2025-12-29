@@ -1,14 +1,15 @@
 use crate::errors::RegistryV2Errors;
 use crate::events::{ClaimRecord, DomainEvicted, RegistryDomain, RegistrySubDomain, RenewDomain, UpdateRecord};
 use crate::non_fungible_domain::Client as NonFungibleDomainClient;
+use crate::registry::{Client as RegistryContractClient, Record, RecordKeys};
 use crate::storage::{
-    admin, consume_index, domain, extend_instance, nfd, oracle, paying_asset, sub_domain, tlds, v1_records, Domain, RecordKey, SubDomain,
+    admin, consume_index, domain, extend_instance, nfd, oracle, paying_asset, sub_domain, tlds, treasury, v1_records, Domain, RecordKey,
+    SubDomain,
 };
 use crate::utils::{burn_token, calculate_exp_date, mint_token, pay_domain_time, validate_domain_expiration, validate_outdated_subdomain};
 use common::utils::{generate_node, validate_domain};
+use soroban_sdk::token::TokenClient;
 use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Bytes, BytesN, Env, Vec};
-
-use crate::registry::{Client as RegistryContractClient, Record, RecordKeys};
 
 pub trait RegistryV2ContractTrait {
     fn __constructor(
@@ -22,6 +23,10 @@ pub trait RegistryV2ContractTrait {
     );
 
     fn upgrade(e: Env, hash: BytesN<32>);
+
+    fn update_treasury(e: Env, new_treasury: Address);
+
+    fn withdraw(e: Env);
 
     fn register(e: Env, new_domain: Bytes, tld: Bytes, owner: Address, address: Address, periods: u64) -> Result<Domain, RegistryV2Errors>;
 
@@ -80,6 +85,19 @@ impl RegistryV2ContractTrait for RegistryV2Contract {
     fn upgrade(e: Env, hash: BytesN<32>) {
         admin(&e, None).unwrap().require_auth();
         e.deployer().update_current_contract_wasm(hash);
+        extend_instance(&e);
+    }
+
+    fn update_treasury(e: Env, new_treasury: Address) {
+        admin(&e, None).unwrap().require_auth();
+        treasury(&e, Some(new_treasury));
+        extend_instance(&e);
+    }
+
+    fn withdraw(e: Env) {
+        let token: TokenClient = TokenClient::new(&e, &paying_asset(&e, None).unwrap());
+        let balance: i128 = token.balance(&e.current_contract_address());
+        token.transfer(&e.current_contract_address(), &treasury(&e, None).unwrap(), &balance);
         extend_instance(&e);
     }
 
